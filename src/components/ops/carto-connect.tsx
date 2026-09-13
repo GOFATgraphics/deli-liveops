@@ -3,12 +3,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CARTO_KEY_URL, useCarto } from "@/lib/carto";
+import { CARTO_KEY_URL, cartoKeyFromEnv, useCarto } from "@/lib/carto";
 import { cn } from "@/lib/utils";
 
 export function CartoConnect() {
   const apiKey = useCarto((s) => s.apiKey);
   const setApiKey = useCarto((s) => s.setApiKey);
+  const envKey = cartoKeyFromEnv();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -46,7 +47,9 @@ export function CartoConnect() {
         <div className="absolute top-12 right-0 z-30 w-80 rounded-xl bg-raised p-4 shadow-[var(--shadow-card)]">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">CARTO Basemaps API</p>
           <p className="mt-1 text-sm text-muted">
-            Voyager tiles go out with your API key. Free for 5M requests a month — no CARTO account.
+            {envKey
+              ? "Live from Vercel — VITE_CARTO_API_KEY is on this deploy. Paste an override only if you need to."
+              : "Voyager tiles go out with your API key. Free for 5M requests a month — no CARTO account."}
           </p>
           <div className="mt-3 flex flex-col gap-1.5">
             <Label htmlFor="carto-key">API key</Label>

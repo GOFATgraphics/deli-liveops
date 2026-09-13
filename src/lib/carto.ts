@@ -13,6 +13,10 @@ function envKey() {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export function cartoKeyFromEnv() {
+  return envKey();
+}
+
 function readStoredKey() {
   if (typeof window === "undefined") return envKey();
   try {
