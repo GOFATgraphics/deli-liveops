@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { MapPinned, Plus, Radio, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CartoConnect } from "@/components/ops/carto-connect";
@@ -20,6 +20,7 @@ type Panel =
   | { kind: "none" }
   | { kind: "preview"; id: string }
   | { kind: "form"; id: "new" | string; draft: PartnerDraft };
+type StatusFilter = "all" | "active" | "paused";
 
 function useIsMd() {
   const [md, setMd] = useState(false);
@@ -42,6 +43,7 @@ export function OpsApp() {
 
   const isMd = useIsMd();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
 
   useEffect(() => {
@@ -58,16 +60,16 @@ export function OpsApp() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = q
-      ? partners.filter((p) =>
-          `${p.name} ${p.address} ${p.phone} ${p.notes}`.toLowerCase().includes(q),
-        )
-      : partners;
+    const list = partners.filter((p) => {
+      const matchesQuery =
+        !q || `${p.name} ${p.address} ${p.phone} ${p.notes}`.toLowerCase().includes(q);
+      return matchesQuery && (statusFilter === "all" || p.status === statusFilter);
+    });
     return [...list].sort((a, b) => {
       if (a.status !== b.status) return a.status === "active" ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
-  }, [partners, query]);
+  }, [partners, query, statusFilter]);
 
   const liveCount = partners.filter((p) => p.status === "active").length;
   const pausedCount = partners.length - liveCount;
@@ -128,30 +130,21 @@ export function OpsApp() {
     ) : null;
 
   return (
-    <div className="flex h-dvh flex-col bg-bg">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-5">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-2xl leading-none tracking-tight">Deli</span>
-            <span className="text-xs font-medium tracking-[0.18em] text-subtle uppercase">
-              LiveOps
-            </span>
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
+      <header className="border-b border-border bg-raised px-4 py-3 md:px-6">
+        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <span className="font-display text-3xl leading-none tracking-tight">Deli</span>
+              <span className="rounded-full border border-border bg-surface px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] text-muted uppercase">
+                Operations desk
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm text-muted">Kano partner coverage, live at a glance.</p>
           </div>
-          <p className="mt-1 text-sm text-muted">
-            <span className="tabular-nums">{partners.length}</span> partners
-            <span className="text-subtle"> · </span>
-            <span className="tabular-nums">{liveCount}</span> live
-            {pausedCount > 0 ? (
-              <>
-                <span className="text-subtle"> · </span>
-                <span className="tabular-nums">{pausedCount}</span> paused
-              </>
-            ) : null}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <CartoConnect />
-          <Button
+          <div className="flex shrink-0 items-center gap-2">
+            <CartoConnect />
+            <Button
             type="button"
             onClick={() => setPanel({ kind: "form", id: "new", draft: { ...EMPTY_DRAFT } })}
             className="shrink-0"
@@ -159,9 +152,18 @@ export function OpsApp() {
             <Plus />
             <span className="hidden sm:inline">Register partner</span>
             <span className="sm:hidden">Register</span>
-          </Button>
+            </Button>
+          </div>
         </div>
       </header>
+
+      <section className="border-b border-border bg-surface px-4 py-3 md:px-6">
+        <div className="mx-auto grid max-w-[1800px] grid-cols-3 gap-2 md:gap-3">
+          <Metric icon={<Users />} label="Partners" value={partners.length} detail="registered" />
+          <Metric icon={<Radio />} label="Live now" value={liveCount} detail="ready to serve" tone="live" />
+          <Metric icon={<MapPinned />} label="Paused" value={pausedCount} detail="needs review" tone="alert" />
+        </div>
+      </section>
 
       <div
         className={cn(
@@ -175,7 +177,37 @@ export function OpsApp() {
         )}
       >
         {showList ? (
-          <aside className="order-2 min-h-0 overflow-hidden border-t border-border md:order-1 md:border-t-0 md:border-r">
+          <aside className="order-2 flex min-h-0 flex-col overflow-hidden border-t border-border bg-raised md:order-1 md:border-t-0 md:border-r">
+            <div className="border-b border-border px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.14em] text-subtle uppercase">Partner queue</p>
+                  <p className="mt-1 text-sm text-muted">{filtered.length} of {partners.length} shown</p>
+                </div>
+                <button type="button" onClick={() => { setStatusFilter("all"); setQuery(""); }} className="text-xs font-medium text-muted hover:text-fg">Reset</button>
+              </div>
+              <div className="mt-3 flex gap-1 overflow-x-auto">
+                {([
+                  ["all", "All", partners.length],
+                  ["active", "Live", liveCount],
+                  ["paused", "Paused", pausedCount],
+                ] as const).map(([value, label, count]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStatusFilter(value)}
+                    aria-pressed={statusFilter === value}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                      statusFilter === value ? "border-fg bg-fg text-accent-fg" : "border-border bg-raised text-muted hover:text-fg",
+                    )}
+                  >
+                    {label} <span className="ml-1 tabular-nums opacity-75">{count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
             <PartnerList
               partners={filtered}
               selectedId={selectedId}
@@ -183,6 +215,7 @@ export function OpsApp() {
               onQuery={setQuery}
               onSelect={(id) => setPanel({ kind: "preview", id })}
             />
+            </div>
           </aside>
         ) : null}
 
@@ -201,9 +234,40 @@ export function OpsApp() {
 
         {inspector ? (
           <aside className="order-3 flex min-h-0 flex-col overflow-hidden border-t border-border bg-raised md:border-t-0 md:border-l">
+            <div className="border-b border-border px-5 py-3 text-xs font-semibold tracking-[0.14em] text-subtle uppercase">
+              {panel.kind === "form" ? (panel.id === "new" ? "New partner" : "Edit partner") : "Partner details"}
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto">{inspector}</div>
           </aside>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+
+function Metric({
+  icon,
+  label,
+  value,
+  detail,
+  tone = "default",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  detail: string;
+  tone?: "default" | "live" | "alert";
+}) {
+  return (
+    <div className={cn("flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2.5 md:gap-3 md:px-4", tone === "live" ? "border-fg/20 bg-raised" : "border-border bg-raised")}>
+      <span className={cn("hidden size-8 shrink-0 items-center justify-center rounded-md md:flex", tone === "live" ? "bg-fg text-accent-fg" : "bg-surface text-muted")}>{icon}</span>
+      <div className="min-w-0">
+        <p className="truncate text-[10px] font-semibold tracking-[0.12em] text-subtle uppercase md:text-xs">{label}</p>
+        <div className="mt-0.5 flex items-baseline gap-1.5">
+          <span className="text-lg font-semibold tabular-nums md:text-xl">{value}</span>
+          <span className="hidden truncate text-xs text-muted md:inline">{detail}</span>
+        </div>
       </div>
     </div>
   );
