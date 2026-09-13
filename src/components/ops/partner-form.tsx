@@ -80,7 +80,8 @@ export function PartnerForm({ draft, isNew, onChange, onSave, onCancel }: Partne
   }
 
   return (
-    <div className="ops-panel flex flex-col gap-4">
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-col gap-4 p-4">
       <div>
         <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">
           {isNew ? "Register partner" : "Edit partner"}
@@ -253,7 +254,8 @@ export function PartnerForm({ draft, isNew, onChange, onSave, onCancel }: Partne
         </div>
       </Field>
 
-      <div className="flex gap-2 pt-1">
+      </div>
+      <div className="sticky bottom-0 z-10 flex gap-2 border-t border-border bg-raised p-4">
         <Button type="button" className="flex-1" onClick={submit}>
           {isNew ? "Save partner" : "Save changes"}
         </Button>

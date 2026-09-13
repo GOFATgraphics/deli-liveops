@@ -21,6 +21,18 @@ type Panel =
   | { kind: "preview"; id: string }
   | { kind: "form"; id: "new" | string; draft: PartnerDraft };
 
+function useIsMd() {
+  const [md, setMd] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => setMd(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return md;
+}
+
 export function OpsApp() {
   const partners = usePartners((s) => s.partners);
   const hydrate = usePartners((s) => s.hydrate);
@@ -28,6 +40,7 @@ export function OpsApp() {
   const setStatus = usePartners((s) => s.setStatus);
   const remove = usePartners((s) => s.remove);
 
+  const isMd = useIsMd();
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
 
@@ -63,7 +76,8 @@ export function OpsApp() {
     panel.kind === "preview" ? panel.id : panel.kind === "form" && panel.id !== "new" ? panel.id : null;
   const draft = panel.kind === "form" ? panel.draft : null;
   const preview = panel.kind === "preview" ? partners.find((p) => p.id === panel.id) : undefined;
-  const showListOnMobile = panel.kind === "none";
+  const panelOpen = panel.kind !== "none";
+  const showList = isMd || panel.kind === "none";
 
   function patchDraft(patch: Partial<PartnerDraft>) {
     setPanel((current) =>
@@ -83,6 +97,35 @@ export function OpsApp() {
       toast.error(error instanceof Error ? error.message : "Could not save");
     }
   }
+
+  const inspector =
+    panel.kind === "form" ? (
+      <PartnerForm
+        draft={panel.draft}
+        isNew={panel.id === "new"}
+        onChange={patchDraft}
+        onSave={saveDraft}
+        onCancel={() =>
+          setPanel(panel.id === "new" ? { kind: "none" } : { kind: "preview", id: panel.id })
+        }
+      />
+    ) : preview ? (
+      <PartnerPreview
+        partner={preview}
+        onEdit={() => setPanel({ kind: "form", id: preview.id, draft: draftFromPartner(preview) })}
+        onToggleStatus={() => {
+          const next = preview.status === "active" ? "paused" : "active";
+          setStatus(preview.id, next);
+          toast.success(next === "paused" ? "Partner paused" : "Partner is live");
+        }}
+        onRemove={() => {
+          remove(preview.id);
+          setPanel({ kind: "none" });
+          toast.success("Partner removed");
+        }}
+        onClose={() => setPanel({ kind: "none" })}
+      />
+    ) : null;
 
   return (
     <div className="flex h-dvh flex-col bg-bg">
@@ -120,25 +163,32 @@ export function OpsApp() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(46vh,1fr)_minmax(0,1fr)] md:grid-rows-none md:grid-cols-[minmax(280px,360px)_1fr]">
-        <aside
-          className={cn(
-            "order-2 min-h-0 overflow-hidden border-t border-border md:order-1 md:border-t-0 md:border-r",
-            showListOnMobile ? "block" : "hidden md:block",
-          )}
-        >
-          <PartnerList
-            partners={filtered}
-            selectedId={selectedId}
-            query={query}
-            onQuery={setQuery}
-            onSelect={(id) => setPanel({ kind: "preview", id })}
-          />
-        </aside>
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 md:grid-rows-none",
+          panelOpen && !isMd
+            ? "grid-rows-[36vh_minmax(0,1fr)]"
+            : "grid-rows-[minmax(42vh,1fr)_minmax(0,1fr)]",
+          panelOpen
+            ? "md:grid-cols-[minmax(240px,300px)_minmax(0,1fr)_minmax(320px,400px)]"
+            : "md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]",
+        )}
+      >
+        {showList ? (
+          <aside className="order-2 min-h-0 overflow-hidden border-t border-border md:order-1 md:border-t-0 md:border-r">
+            <PartnerList
+              partners={filtered}
+              selectedId={selectedId}
+              query={query}
+              onQuery={setQuery}
+              onSelect={(id) => setPanel({ kind: "preview", id })}
+            />
+          </aside>
+        ) : null}
 
-        <section className="relative order-1 flex min-h-0 flex-col md:order-2">
+        <section className="relative order-1 min-h-0 md:order-2">
           <HubMap
-            className="h-full min-h-[46vh] md:absolute md:inset-0 md:min-h-0"
+            className="h-full min-h-0 md:absolute md:inset-0"
             partners={partners}
             selectedId={selectedId}
             draft={draft}
@@ -147,54 +197,13 @@ export function OpsApp() {
             onPick={(lat, lng) => patchDraft({ lat, lng })}
           />
 
-          {panel.kind === "form" ? (
-            <OverlayCard>
-              <PartnerForm
-                draft={panel.draft}
-                isNew={panel.id === "new"}
-                onChange={patchDraft}
-                onSave={saveDraft}
-                onCancel={() =>
-                  setPanel(panel.id === "new" ? { kind: "none" } : { kind: "preview", id: panel.id })
-                }
-              />
-            </OverlayCard>
-          ) : preview ? (
-            <OverlayCard>
-              <PartnerPreview
-                partner={preview}
-                onEdit={() => setPanel({ kind: "form", id: preview.id, draft: draftFromPartner(preview) })}
-                onToggleStatus={() => {
-                  const next = preview.status === "active" ? "paused" : "active";
-                  setStatus(preview.id, next);
-                  toast.success(next === "paused" ? "Partner paused" : "Partner is live");
-                }}
-                onRemove={() => {
-                  remove(preview.id);
-                  setPanel({ kind: "none" });
-                  toast.success("Partner removed");
-                }}
-                onClose={() => setPanel({ kind: "none" })}
-              />
-            </OverlayCard>
-          ) : (
-            <div className="pointer-events-none absolute inset-x-0 top-3 hidden justify-center md:flex">
-              <p className="rounded-full bg-raised/90 px-3 py-1.5 text-sm text-muted shadow-[var(--shadow-card)]">
-                Select a partner or register a new one
-              </p>
-            </div>
-          )}
         </section>
-      </div>
-    </div>
-  );
-}
 
-function OverlayCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-[55%] justify-center p-3 md:inset-y-4 md:right-4 md:left-auto md:max-h-none md:w-96 md:p-0">
-      <div className="ops-panel pointer-events-auto w-full overflow-auto rounded-xl bg-raised shadow-[var(--shadow-card)]">
-        {children}
+        {inspector ? (
+          <aside className="order-3 flex min-h-0 flex-col overflow-hidden border-t border-border bg-raised md:border-t-0 md:border-l">
+            <div className="min-h-0 flex-1 overflow-y-auto">{inspector}</div>
+          </aside>
+        ) : null}
       </div>
     </div>
   );

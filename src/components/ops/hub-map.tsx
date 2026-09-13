@@ -193,15 +193,17 @@ export function HubMap({
         offset: [0, partner.image ? -18 : -10],
         opacity: 0.95,
       });
-      L.circle([partner.lat, partner.lng], {
-        radius: partner.radiusKm * 1000,
-        color: stroke,
-        weight: isSelected ? 1.5 : 1,
-        opacity: isSelected ? 0.7 : 0.28,
-        fillColor: stroke,
-        fillOpacity: isSelected ? 0.08 : 0.04,
-        interactive: false,
-      }).addTo(group);
+      if (isSelected) {
+        L.circle([partner.lat, partner.lng], {
+          radius: partner.radiusKm * 1000,
+          color: stroke,
+          weight: 1.5,
+          opacity: 0.7,
+          fillColor: stroke,
+          fillOpacity: 0.06,
+          interactive: false,
+        }).addTo(group);
+      }
       marker.addTo(group);
       bounds.extend([partner.lat, partner.lng]);
     }
@@ -252,7 +254,7 @@ export function HubMap({
         ref={containerRef}
         className={cn("absolute inset-0 z-0", pickMode && "cursor-crosshair")}
       />
-      <div className="absolute bottom-3 left-3 z-20 flex overflow-hidden rounded-md bg-raised shadow-[var(--shadow-card)]">
+      <div className="absolute top-3 right-3 z-20 flex overflow-hidden rounded-md bg-raised shadow-[var(--shadow-card)]">
         <button
           type="button"
           onClick={() => setBasemap("streets")}
@@ -275,7 +277,7 @@ export function HubMap({
         </button>
       </div>
       {pickMode ? (
-        <div className="pointer-events-none absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-raised/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)]">
+        <div className="pointer-events-none absolute top-3 left-14 z-20 rounded-full bg-raised/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)]">
           Click the map to set the hub
         </div>
       ) : null}
