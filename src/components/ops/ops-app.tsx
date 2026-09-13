@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CartoConnect } from "@/components/ops/carto-connect";
 import { HubMap } from "@/components/ops/hub-map";
+import { JobBoard } from "@/components/ops/job-board";
 import { PartnerForm } from "@/components/ops/partner-form";
 import { PartnerList } from "@/components/ops/partner-list";
 import { PartnerPreview } from "@/components/ops/partner-preview";
@@ -41,6 +42,7 @@ export function OpsApp() {
   const remove = usePartners((s) => s.remove);
 
   const isMd = useIsMd();
+  const [desk, setDesk] = useState<"partners" | "jobs">("partners");
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
 
@@ -85,12 +87,12 @@ export function OpsApp() {
     );
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     if (panel.kind !== "form") return;
     try {
       const existing = panel.id === "new" ? undefined : partners.find((p) => p.id === panel.id);
       const partner = partnerFromDraft(panel.draft, existing);
-      upsert(partner);
+      await upsert(partner);
       toast.success(panel.id === "new" ? "Partner registered" : "Partner updated");
       setPanel({ kind: "preview", id: partner.id });
     } catch (error) {
@@ -150,19 +152,57 @@ export function OpsApp() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden overflow-hidden rounded-md bg-raised shadow-[var(--shadow-hairline)] sm:flex">
+            <button
+              type="button"
+              onClick={() => setDesk("partners")}
+              className={cn("h-11 px-3 text-sm font-medium", desk === "partners" ? "bg-fg text-accent-fg" : "text-muted hover:text-fg")}
+            >
+              Fleets
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesk("jobs")}
+              className={cn("h-11 px-3 text-sm font-medium", desk === "jobs" ? "bg-fg text-accent-fg" : "text-muted hover:text-fg")}
+            >
+              Jobs
+            </button>
+          </div>
           <CartoConnect />
-          <Button
-            type="button"
-            onClick={() => setPanel({ kind: "form", id: "new", draft: { ...EMPTY_DRAFT } })}
-            className="shrink-0"
-          >
-            <Plus />
-            <span className="hidden sm:inline">Register partner</span>
-            <span className="sm:hidden">Register</span>
-          </Button>
+          {desk === "partners" ? (
+            <Button
+              type="button"
+              onClick={() => setPanel({ kind: "form", id: "new", draft: { ...EMPTY_DRAFT } })}
+              className="shrink-0"
+            >
+              <Plus />
+              <span className="hidden sm:inline">Register partner</span>
+              <span className="sm:hidden">Register</span>
+            </Button>
+          ) : null}
         </div>
       </header>
 
+      <div className="flex gap-1 border-b border-border px-3 py-2 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setDesk("partners")}
+          className={cn("h-11 flex-1 rounded-md text-sm font-medium", desk === "partners" ? "bg-fg text-accent-fg" : "bg-raised")}
+        >
+          Fleets
+        </button>
+        <button
+          type="button"
+          onClick={() => setDesk("jobs")}
+          className={cn("h-11 flex-1 rounded-md text-sm font-medium", desk === "jobs" ? "bg-fg text-accent-fg" : "bg-raised")}
+        >
+          Jobs
+        </button>
+      </div>
+
+      {desk === "jobs" ? (
+        <JobBoard />
+      ) : (
       <div
         className={cn(
           "grid min-h-0 flex-1 md:grid-rows-none",
@@ -205,6 +245,7 @@ export function OpsApp() {
           </aside>
         ) : null}
       </div>
+      )}
     </div>
   );
 }

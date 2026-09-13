@@ -1,60 +1,61 @@
 import { create } from "zustand";
+import { listFleets, removeFleet, setFleetStatus, upsertFleet } from "@/lib/ops-data";
 import { SEED_PARTNERS } from "./seed";
 import type { Partner, PartnerStatus } from "./types";
 
-const KEY = "deli.partners.v3";
-
-function readPartners(): Partner[] {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return SEED_PARTNERS;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) return SEED_PARTNERS;
-    return parsed as Partner[];
-  } catch {
-    return SEED_PARTNERS;
-  }
-}
-
-function writePartners(partners: Partner[]) {
-  localStorage.setItem(KEY, JSON.stringify(partners));
-}
-
 type PartnerStore = {
   partners: Partner[];
-  hydrate: () => void;
-  upsert: (partner: Partner) => void;
-  setStatus: (id: string, status: PartnerStatus) => void;
-  remove: (id: string) => void;
+  ready: boolean;
+  hydrate: () => Promise<void>;
+  upsert: (partner: Partner) => Promise<void>;
+  setStatus: (id: string, status: PartnerStatus) => Promise<void>;
+  remove: (id: string) => Promise<void>;
 };
 
 export const usePartners = create<PartnerStore>((set, get) => ({
   partners: SEED_PARTNERS,
-  hydrate: () => {
-    const partners = readPartners();
-    if (!localStorage.getItem(KEY)) writePartners(partners);
-    set({ partners });
+  ready: false,
+  hydrate: async () => {
+    try {
+      const partners = await listFleets();
+      set({ partners, ready: true });
+    } catch (error) {
+      console.error("[deli] fleets", error);
+      set({ ready: true });
+    }
   },
-  upsert: (partner) => {
+  upsert: async (partner) => {
+    const saved = await upsertFleet({
+      data: {
+        id: partner.id,
+        name: partner.name,
+        phone: partner.phone,
+        notes: partner.notes,
+        address: partner.address,
+        lat: partner.lat,
+        lng: partner.lng,
+        radiusKm: partner.radiusKm,
+        vehicles: partner.vehicles,
+        status: partner.status,
+        image: partner.image,
+      },
+    });
     const current = get().partners;
-    const index = current.findIndex((p) => p.id === partner.id);
+    const index = current.findIndex((p) => p.id === saved.id);
     const next =
-      index === -1
-        ? [partner, ...current]
-        : current.map((p) => (p.id === partner.id ? partner : p));
-    writePartners(next);
+      index === -1 ? [saved, ...current] : current.map((p) => (p.id === saved.id ? saved : p));
     set({ partners: next });
   },
-  setStatus: (id, status) => {
-    const next = get().partners.map((p) =>
-      p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p,
-    );
-    writePartners(next);
-    set({ partners: next });
+  setStatus: async (id, status) => {
+    await setFleetStatus({ data: { id, status } });
+    set({
+      partners: get().partners.map((p) =>
+        p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p,
+      ),
+    });
   },
-  remove: (id) => {
-    const next = get().partners.filter((p) => p.id !== id);
-    writePartners(next);
-    set({ partners: next });
+  remove: async (id) => {
+    await removeFleet({ data: { id } });
+    set({ partners: get().partners.filter((p) => p.id !== id) });
   },
 }));

@@ -1,0 +1,397 @@
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { searchPlaces } from "@/lib/geocode";
+import {
+  addQuote,
+  createJob,
+  listJobEvents,
+  listJobs,
+  listQuotes,
+  type JobEventRow,
+  type JobRow,
+  type QuoteRow,
+} from "@/lib/ops-data";
+import { usePartners } from "@/lib/store";
+import { cn } from "@/lib/utils";
+
+function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function money(n: number) {
+  return `₦${n.toLocaleString("en-NG")}`;
+}
+
+export function JobBoard() {
+  const fleets = usePartners((s) => s.partners);
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quotes, setQuotes] = useState<QuoteRow[]>([]);
+  const [events, setEvents] = useState<JobEventRow[]>([]);
+  const [composing, setComposing] = useState(false);
+
+  async function refresh() {
+    const next = await listJobs();
+    setJobs(next);
+    return next;
+  }
+
+  useEffect(() => {
+    void refresh().catch((error) => toast.error(error instanceof Error ? error.message : "Jobs failed"));
+  }, []);
+
+  const selected = jobs.find((job) => job.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!selectedId) {
+      setQuotes([]);
+      setEvents([]);
+      return;
+    }
+    void Promise.all([listQuotes({ data: { jobId: selectedId } }), listJobEvents({ data: { jobId: selectedId } })])
+      .then(([nextQuotes, nextEvents]) => {
+        setQuotes(nextQuotes);
+        setEvents(nextEvents);
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Could not load job"));
+  }, [selectedId]);
+
+  return (
+    <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+      <aside className="min-h-0 overflow-hidden border-b border-border md:border-r md:border-b-0">
+        <div className="flex items-center justify-between gap-2 px-4 py-3">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Jobs</p>
+          <Button type="button" size="sm" onClick={() => setComposing(true)}>
+            <Plus />
+            New job
+          </Button>
+        </div>
+        <div className="min-h-0 overflow-y-auto px-2 pb-4">
+          {jobs.length === 0 ? (
+            <p className="px-3 py-10 text-center text-sm text-muted">No jobs yet. File one from the desk.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {jobs.map((job) => (
+                <li key={job.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposing(false);
+                      setSelectedId(job.id);
+                    }}
+                    className={cn(
+                      "flex w-full flex-col gap-1 rounded-lg px-3 py-3 text-left",
+                      selectedId === job.id ? "bg-raised shadow-[var(--shadow-hairline)]" : "hover:bg-fg/4",
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-sm">{job.publicId}</span>
+                      <span className="text-[11px] tracking-wide text-subtle uppercase">{job.status.replaceAll("_", " ")}</span>
+                    </span>
+                    <span className="text-sm text-muted">
+                      {job.pickupLandmark} → {job.dropoffLandmark}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+
+      <section className="min-h-0 overflow-y-auto bg-raised">
+        {composing ? (
+          <NewJobForm
+            onCancel={() => setComposing(false)}
+            onCreated={async (job) => {
+              await refresh();
+              setComposing(false);
+              setSelectedId(job.id);
+            }}
+          />
+        ) : selected ? (
+          <JobDetail
+            job={selected}
+            quotes={quotes}
+            events={events}
+            fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status }))}
+            onQuoted={async () => {
+              const next = await refresh();
+              const current = next.find((job) => job.id === selected.id);
+              if (current) setSelectedId(current.id);
+              const [nextQuotes, nextEvents] = await Promise.all([
+                listQuotes({ data: { jobId: selected.id } }),
+                listJobEvents({ data: { jobId: selected.id } }),
+              ]);
+              setQuotes(nextQuotes);
+              setEvents(nextEvents);
+            }}
+          />
+        ) : (
+          <p className="p-8 text-sm text-muted">Select a job or file a new request.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function NewJobForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: (job: JobRow) => Promise<void>;
+}) {
+  const [senderName, setSenderName] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [pickup, setPickup] = useState("");
+  const [dropoff, setDropoff] = useState("");
+  const [pickupPin, setPickupPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropoffPin, setDropoffPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [goods, setGoods] = useState("");
+  const [constraints, setConstraints] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function locate(which: "pickup" | "dropoff") {
+    const q = which === "pickup" ? pickup : dropoff;
+    if (q.trim().length < 2) return;
+    const hits = await searchPlaces(q);
+    const hit = hits[0];
+    if (!hit) {
+      toast.error("No place in Kano for that.");
+      return;
+    }
+    if (which === "pickup") {
+      setPickup(hit.label);
+      setPickupPin({ lat: hit.lat, lng: hit.lng });
+    } else {
+      setDropoff(hit.label);
+      setDropoffPin({ lat: hit.lat, lng: hit.lng });
+    }
+  }
+
+  async function submit() {
+    if (!pickupPin || !dropoffPin) {
+      toast.error("Find both landmarks on the map.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const job = await createJob({
+        data: {
+          pickupLat: pickupPin.lat,
+          pickupLng: pickupPin.lng,
+          pickupLandmark: pickup,
+          dropoffLat: dropoffPin.lat,
+          dropoffLng: dropoffPin.lng,
+          dropoffLandmark: dropoff,
+          distanceKm: Math.round(kmBetween(pickupPin.lat, pickupPin.lng, dropoffPin.lat, dropoffPin.lng) * 10) / 10,
+          goods,
+          constraints,
+          windowKind: "now",
+          senderName,
+          senderPhone,
+        },
+      });
+      toast.success(`${job.publicId} filed`);
+      await onCreated(job);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not file job");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto flex max-w-xl flex-col gap-4 p-4 md:p-6">
+      <div>
+        <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">New job</p>
+        <h2 className="font-display mt-1 text-xl tracking-tight">File a request</h2>
+      </div>
+      <Field label="Sender">
+        <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Shop name" />
+      </Field>
+      <Field label="Sender phone">
+        <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+234 …" />
+      </Field>
+      <Field label="Pickup landmark">
+        <div className="flex gap-2">
+          <Input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Sabon Gari market gate" />
+          <Button type="button" variant="secondary" onClick={() => void locate("pickup")}>
+            Find
+          </Button>
+        </div>
+      </Field>
+      <Field label="Dropoff landmark">
+        <div className="flex gap-2">
+          <Input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Nassarawa GRA" />
+          <Button type="button" variant="secondary" onClick={() => void locate("dropoff")}>
+            Find
+          </Button>
+        </div>
+      </Field>
+      {pickupPin && dropoffPin ? (
+        <p className="text-sm text-muted tabular-nums">
+          {Math.round(kmBetween(pickupPin.lat, pickupPin.lng, dropoffPin.lat, dropoffPin.lng) * 10) / 10} km
+        </p>
+      ) : null}
+      <Field label="Goods">
+        <Input value={goods} onChange={(e) => setGoods(e.target.value)} placeholder="Two cartons, no fridge" />
+      </Field>
+      <Field label="Constraints">
+        <Textarea value={constraints} onChange={(e) => setConstraints(e.target.value)} placeholder="Bike only, fragile excluded…" />
+      </Field>
+      <div className="flex gap-2">
+        <Button type="button" className="flex-1" disabled={busy} onClick={() => void submit()}>
+          File job
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function JobDetail({
+  job,
+  quotes,
+  events,
+  fleets,
+  onQuoted,
+}: {
+  job: JobRow;
+  quotes: QuoteRow[];
+  events: JobEventRow[];
+  fleets: { id: string; name: string; status: string }[];
+  onQuoted: () => Promise<void>;
+}) {
+  const [fleetId, setFleetId] = useState(fleets.find((f) => f.status === "active")?.id ?? "");
+  const [total, setTotal] = useState("3500");
+  const [fee, setFee] = useState("400");
+  const [eta, setEta] = useState("45");
+  const [terms, setTerms] = useState("Includes 10 min waiting. Cancel before pickup at no charge.");
+
+  async function submitQuote() {
+    try {
+      await addQuote({
+        data: {
+          jobId: job.id,
+          fleetId,
+          totalNgn: Number(total),
+          deliFeeNgn: Number(fee),
+          etaMinutes: Number(eta),
+          terms,
+          hoursValid: 6,
+        },
+      });
+      toast.success("Quote on the board");
+      await onQuoted();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not add quote");
+    }
+  }
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 md:p-6">
+      <div>
+        <p className="font-mono text-sm text-muted">{job.publicId}</p>
+        <h2 className="font-display mt-1 text-2xl tracking-tight">{job.pickupLandmark} → {job.dropoffLandmark}</h2>
+        <p className="mt-1 text-sm text-muted">
+          {job.distanceKm} km · {job.goods} · {job.status.replaceAll("_", " ")}
+        </p>
+      </div>
+
+      <div className="rounded-xl bg-bg p-4">
+        <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Quotes</p>
+        {quotes.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">None yet. Log what the fleet said.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {quotes.map((quote) => (
+              <li key={quote.id} className="rounded-lg bg-raised p-3 shadow-[var(--shadow-hairline)]">
+                <p className="flex items-center justify-between gap-2 text-sm">
+                  <span className="font-medium">{quote.fleetName}</span>
+                  <span className="tabular-nums">{money(quote.totalNgn)}</span>
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Fleet {money(quote.fleetPayoutNgn)} · Deli {money(quote.deliFeeNgn)} · {quote.etaMinutes} min · fee on {quote.paymentFeePayer}
+                </p>
+                {quote.terms ? <p className="mt-1 text-xs text-subtle">{quote.terms}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label>Fleet</Label>
+            <select
+              value={fleetId}
+              onChange={(e) => setFleetId(e.target.value)}
+              className="h-11 rounded-md bg-raised px-3 text-sm shadow-[var(--shadow-hairline)]"
+            >
+              {fleets.filter((f) => f.status === "active").map((fleet) => (
+                <option key={fleet.id} value={fleet.id}>
+                  {fleet.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field label="Total NGN">
+            <Input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="numeric" />
+          </Field>
+          <Field label="Deli fee NGN">
+            <Input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="numeric" />
+          </Field>
+          <Field label="ETA minutes">
+            <Input value={eta} onChange={(e) => setEta(e.target.value)} inputMode="numeric" />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Terms">
+              <Textarea value={terms} onChange={(e) => setTerms(e.target.value)} />
+            </Field>
+          </div>
+        </div>
+        <Button type="button" className="mt-3" onClick={() => void submitQuote()} disabled={!fleetId}>
+          Add quote
+        </Button>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Timeline</p>
+        <ul className="mt-2 flex flex-col gap-1">
+          {events.map((event) => (
+            <li key={event.id} className="text-sm text-muted">
+              <span className="font-mono text-xs text-subtle">{new Date(event.at).toLocaleString()}</span>
+              {" · "}
+              {event.kind}
+              {event.toStatus ? ` → ${event.toStatus.replaceAll("_", " ")}` : ""}
+              {" · "}
+              {event.actor}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}

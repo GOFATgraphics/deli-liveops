@@ -13,3 +13,4 @@ attachments
 !.env.example
 *.local
 .DS_Store
+.neon

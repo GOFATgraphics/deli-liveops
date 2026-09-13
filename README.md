@@ -1,17 +1,20 @@
 # Deli LiveOps
 
-Ops desk for Deli — last-mile delivery in **Kano State**. Register courier fleets, pin hubs on the map, and hold coverage radii until a sender requests a quote.
+Ops desk for Deli — last-mile delivery in a tight **Kano** zone. Fleets, jobs, quotes, and an event log live in **Postgres** (Neon in production, embedded PGLite in preview).
 
-## Stack
+## Data
 
-TanStack Start, React, Tailwind, Leaflet. Streets tiles are CARTO Voyager, signed on the server.
+| Store | Role |
+|---|---|
+| Neon Postgres | Source of truth — fleets, jobs, quotes, payments, payouts, job_events |
+| Kysely | Auth query layer already in the repo |
+| CARTO | Map tiles only, signed on the server |
+| Vercel Blob / Redis | Later — photos, OTPs |
 
-Auth and database are off for this step. Partners persist in the browser.
+Do not put operational records on the map provider. Do not use Firebase, MongoDB, or Supabase for this.
+
+`DATABASE_URL` is injected on deploy. Do not put it in a `VITE_` variable.
 
 ## Map tiles
 
-Set **`CARTO_API_KEY`** on the host (Vercel → Environment Variables). Do **not** prefix it with `VITE_` — that would put the secret in the browser.
-
-Tiles are fetched at `/api/tiles` on the server, with the key attached there. The map never sees it.
-
-Get a free key at [carto.com/basemaps/apikey](https://carto.com/basemaps/apikey).
+Set **`CARTO_API_KEY`** on the host (server only). Tiles are fetched at `/api/tiles`.
