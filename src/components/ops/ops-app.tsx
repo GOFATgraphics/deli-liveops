@@ -7,7 +7,6 @@ import { PartnerForm } from "@/components/ops/partner-form";
 import { PartnerList } from "@/components/ops/partner-list";
 import { PartnerPreview } from "@/components/ops/partner-preview";
 import { Button } from "@/components/ui/button";
-import { useCarto } from "@/lib/carto";
 import { usePartners } from "@/lib/store";
 import {
   EMPTY_DRAFT,
@@ -25,7 +24,6 @@ type Panel =
 export function OpsApp() {
   const partners = usePartners((s) => s.partners);
   const hydrate = usePartners((s) => s.hydrate);
-  const hydrateCarto = useCarto((s) => s.hydrate);
   const upsert = usePartners((s) => s.upsert);
   const setStatus = usePartners((s) => s.setStatus);
   const remove = usePartners((s) => s.remove);
@@ -35,8 +33,7 @@ export function OpsApp() {
 
   useEffect(() => {
     hydrate();
-    hydrateCarto();
-  }, [hydrate, hydrateCarto]);
+  }, [hydrate]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

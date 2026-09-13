@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CARTO_ATTRIBUTION, useCarto, voyagerTileUrl } from "@/lib/carto";
+import { CARTO_ATTRIBUTION, VOYAGER_TILES } from "@/lib/carto";
 import { inKanoState, KANO_BOUNDS, MAP_ORIGIN } from "@/lib/seed";
 import type { Partner, PartnerDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,6 @@ export function HubMap({
   const didFitRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>("streets");
-  const apiKey = useCarto((s) => s.apiKey);
 
   onPickRef.current = onPick;
   onSelectRef.current = onSelect;
@@ -90,10 +89,10 @@ export function HubMap({
         maxBoundsViscosity: 0.85,
       }).setView([MAP_ORIGIN.lat, MAP_ORIGIN.lng], MAP_ORIGIN.zoom);
 
-      const streets = L.tileLayer(voyagerTileUrl(apiKey), {
+      const streets = L.tileLayer(VOYAGER_TILES, {
         attribution: CARTO_ATTRIBUTION,
-        subdomains: "abcd",
         maxZoom: 20,
+        detectRetina: false,
       });
       const satellite = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -142,10 +141,6 @@ export function HubMap({
       satelliteRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    streetsRef.current?.setUrl(voyagerTileUrl(apiKey));
-  }, [apiKey, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;

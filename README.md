@@ -4,10 +4,14 @@ Ops desk for Deli — last-mile delivery in **Kano State**. Register courier fle
 
 ## Stack
 
-TanStack Start, React, Tailwind, Leaflet, CARTO Voyager tiles.
+TanStack Start, React, Tailwind, Leaflet. Streets tiles are CARTO Voyager, signed on the server.
 
 Auth and database are off for this step. Partners persist in the browser.
 
-## CARTO
+## Map tiles
 
-Paste a free [CARTO basemap key](https://carto.com/basemaps/apikey) in **Connect CARTO**. Without it, tiles may watermark.
+Set **`CARTO_API_KEY`** on the host (Vercel → Environment Variables). Do **not** prefix it with `VITE_` — that would put the secret in the browser.
+
+Tiles are fetched at `/api/tiles` on the server, with the key attached there. The map never sees it.
+
+Get a free key at [carto.com/basemaps/apikey](https://carto.com/basemaps/apikey).
