@@ -1,5 +1,5 @@
 import { MapPinned, Plus, Radio, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CartoConnect } from "@/components/ops/carto-connect";
 import { HubMap } from "@/components/ops/hub-map";
@@ -150,7 +150,7 @@ export function OpsApp() {
             className="shrink-0"
           >
             <Plus />
-            <span className="hidden sm:inline">Register partner</span>
+            <span className="hidden sm:inline">Add partner</span>
             <span className="sm:hidden">Register</span>
             </Button>
           </div>
@@ -253,7 +253,7 @@ function Metric({
   detail,
   tone = "default",
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: number;
   detail: string;
