@@ -44,7 +44,11 @@ function SenderHome() {
   }
 
   useEffect(() => {
-    void refresh().catch((error) => toast.error(error instanceof Error ? error.message : "Could not load"));
+    void refresh().catch((error) => {
+      const message = error instanceof Error ? error.message : "Could not load";
+      if (message === "Unauthorized") return;
+      toast.error(message);
+    });
   }, []);
 
   const needsPhone = profile !== undefined && (!profile || profile.phone.length < 7);

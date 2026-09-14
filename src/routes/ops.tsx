@@ -1,19 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { OpsApp } from "@/components/ops/ops-app";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/ops")({
-  component: OpsPage,
-  head: () => ({
-    meta: [
-      { title: "Deli Admin" },
-      {
-        name: "description",
-        content: "Register fleets, quote jobs, and run deliveries from the LiveOps desk.",
-      },
-    ],
-  }),
+  beforeLoad: () => {
+    throw redirect({ to: "/admin" });
+  },
 });
-
-function OpsPage() {
-  return <OpsApp />;
-}

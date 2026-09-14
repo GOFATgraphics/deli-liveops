@@ -8,13 +8,27 @@ import { Label } from "@/components/ui/label";
 import { saveMySender } from "@/lib/sender-data";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: search.next === "/admin" ? ("/admin" as const) : ("/" as const),
+  }),
   component: Login,
   head: () => ({
     meta: [{ title: "Deli — Sign in" }],
   }),
 });
 
+function keepSession(data: { token?: string | null } | null | undefined) {
+  const token = data?.token;
+  if (!token || typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem("grok-auth.bearer-token", token);
+  } catch {
+    /* preview storage can be blocked */
+  }
+}
+
 function Login() {
+  const { next } = Route.useSearch();
   const { user, isPending } = useCurrentUserState();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [name, setName] = useState("");
@@ -31,7 +45,7 @@ function Login() {
       </main>
     );
   }
-  if (user) return <Navigate to="/" />;
+  if (user) return <Navigate to={next} />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -40,33 +54,29 @@ function Login() {
     try {
       if (!authEnabled) throw new Error("Sign-in is disabled.");
       if (mode === "up") {
-        const { error: signUpError } = await authClient.signUp.email({
+        const { data, error: signUpError } = await authClient.signUp.email({
           email: email.trim(),
           password,
           name: name.trim(),
-          fetchOptions: {
-            onSuccess(ctx) {
-              rememberSessionToken(ctx.response);
-            },
-          },
         });
         if (signUpError) throw new Error(signUpError.message || "Could not create the account.");
+        keepSession(data);
         await authClient.getSession();
-        await saveMySender({ data: { name: name.trim(), phone: phone.trim() } });
+        try {
+          await saveMySender({ data: { name: name.trim(), phone: phone.trim() } });
+        } catch {
+          /* phone is collected again on the sender home if this fails */
+        }
       } else {
-        const { error: signInError } = await authClient.signIn.email({
+        const { data, error: signInError } = await authClient.signIn.email({
           email: email.trim(),
           password,
-          fetchOptions: {
-            onSuccess(ctx) {
-              rememberSessionToken(ctx.response);
-            },
-          },
         });
         if (signInError) throw new Error(signInError.message || "Email or password is wrong.");
+        keepSession(data);
         await authClient.getSession();
       }
-      window.location.assign("/");
+      window.location.assign(next);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not sign in");
       setBusy(false);
@@ -156,7 +166,9 @@ function Login() {
                   type="button"
                   variant="secondary"
                   className="w-full"
-                  onClick={() => void signIn(provider.providerId, { callbackURL: "/", errorCallbackURL: "/login" })}
+                  onClick={() =>
+                    void signIn(provider.providerId, { callbackURL: next, errorCallbackURL: "/login" })
+                  }
                 >
                   Continue with {provider.label}
                 </Button>
@@ -166,23 +178,13 @@ function Login() {
         ) : null}
 
         <p className="mt-8 text-center text-sm text-muted">
-          <Link to="/ops" className="underline-offset-4 hover:underline">
+          <Link to="/admin" className="underline-offset-4 hover:underline">
             Staff admin
           </Link>
         </p>
       </div>
     </main>
   );
-}
-
-function rememberSessionToken(response: { headers: { get(name: string): string | null } } | undefined) {
-  const token = response?.headers.get("set-auth-token");
-  if (!token || typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem("grok-auth.bearer-token", token);
-  } catch {
-    /* preview storage can be blocked */
-  }
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { operatorMiddleware } from "@/lib/operator-data";
 import type { Partner, PartnerStatus, Vehicle } from "@/lib/types";
 
 export const JOB_STATUSES = [
@@ -128,7 +129,7 @@ const FLEET_SELECT = `
   left join fleet_contacts c on c.fleet_id = f.id and c.is_primary = true
 `;
 
-export const listFleets = createServerFn({ method: "GET" }).handler(async () => {
+export const listFleets = createServerFn({ method: "GET" }).middleware([operatorMiddleware]).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   const rows = await sql.query<FleetJoin>(`${FLEET_SELECT} order by f.status asc, f.name asc`);
@@ -163,7 +164,7 @@ async function pushFleetsToCarto() {
 }
 
 export const upsertFleet = createServerFn({ method: "POST" })
-  .validator(partnerInput)
+  .middleware([operatorMiddleware]).validator(partnerInput)
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -214,7 +215,7 @@ export const upsertFleet = createServerFn({ method: "POST" })
   });
 
 export const setFleetStatus = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string(), status: z.enum(["active", "paused"]) }))
+  .middleware([operatorMiddleware]).validator(z.object({ id: z.string(), status: z.enum(["active", "paused"]) }))
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -227,7 +228,7 @@ export const setFleetStatus = createServerFn({ method: "POST" })
   });
 
 export const removeFleet = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string() }))
+  .middleware([operatorMiddleware]).validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -277,7 +278,7 @@ export function mapJob(row: Record<string, unknown>): JobRow {
   };
 }
 
-export const listJobs = createServerFn({ method: "GET" }).handler(async () => {
+export const listJobs = createServerFn({ method: "GET" }).middleware([operatorMiddleware]).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   const rows = await sql.query(`select * from jobs order by created_at desc`);
@@ -300,7 +301,7 @@ const jobInput = z.object({
 });
 
 export const createJob = createServerFn({ method: "POST" })
-  .validator(jobInput)
+  .middleware([operatorMiddleware]).validator(jobInput)
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -342,7 +343,7 @@ export const createJob = createServerFn({ method: "POST" })
   });
 
 export const listQuotes = createServerFn({ method: "GET" })
-  .validator(z.object({ jobId: z.string() }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string() }))
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -395,7 +396,7 @@ const quoteInput = z.object({
 });
 
 export const addQuote = createServerFn({ method: "POST" })
-  .validator(quoteInput)
+  .middleware([operatorMiddleware]).validator(quoteInput)
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -420,7 +421,7 @@ export const addQuote = createServerFn({ method: "POST" })
   });
 
 export const listJobEvents = createServerFn({ method: "GET" })
-  .validator(z.object({ jobId: z.string() }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string() }))
   .handler(async ({ data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -496,7 +497,7 @@ async function writeStatus(
 }
 
 export const acceptQuote = createServerFn({ method: "POST" })
-  .validator(z.object({ jobId: z.string(), quoteId: z.string() }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string(), quoteId: z.string() }))
   .handler(async ({ data }) => {
     const { sql, job } = await loadJob(data.jobId);
     if (job.status !== "quoted" && job.status !== "quote_pending") {
@@ -530,7 +531,7 @@ export const acceptQuote = createServerFn({ method: "POST" })
   });
 
 export const markPaid = createServerFn({ method: "POST" })
-  .validator(z.object({ jobId: z.string(), reference: z.string().min(2) }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string(), reference: z.string().min(2) }))
   .handler(async ({ data }) => {
     const { sql, job } = await loadJob(data.jobId);
     if (job.status !== "accepted" && job.status !== "payment_pending") {
@@ -560,7 +561,7 @@ export const markPaid = createServerFn({ method: "POST" })
   });
 
 export const advanceJob = createServerFn({ method: "POST" })
-  .validator(z.object({ jobId: z.string() }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string() }))
   .handler(async ({ data }) => {
     const { sql, job } = await loadJob(data.jobId);
     const to = ADVANCE[job.status];
@@ -573,7 +574,7 @@ export const advanceJob = createServerFn({ method: "POST" })
   });
 
 export const confirmDelivery = createServerFn({ method: "POST" })
-  .validator(z.object({ jobId: z.string(), code: z.string().min(4).max(4) }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string(), code: z.string().min(4).max(4) }))
   .handler(async ({ data }) => {
     const { sql, job } = await loadJob(data.jobId);
     if (job.status !== "delivery_confirmation_pending" && job.status !== "in_transit") {
@@ -587,7 +588,7 @@ export const confirmDelivery = createServerFn({ method: "POST" })
   });
 
 export const recordPayout = createServerFn({ method: "POST" })
-  .validator(z.object({ jobId: z.string(), note: z.string().min(2), amountNgn: z.number().int().positive() }))
+  .middleware([operatorMiddleware]).validator(z.object({ jobId: z.string(), note: z.string().min(2), amountNgn: z.number().int().positive() }))
   .handler(async ({ data }) => {
     const { sql, job } = await loadJob(data.jobId);
     if (job.status !== "delivered" && job.status !== "settlement_pending") {
@@ -617,7 +618,7 @@ export const recordPayout = createServerFn({ method: "POST" })
   });
 
 export const abortJob = createServerFn({ method: "POST" })
-  .validator(
+  .middleware([operatorMiddleware]).validator(
     z.object({
       jobId: z.string(),
       status: z.enum(["cancelled", "failed"]),
