@@ -1,11 +1,11 @@
-import { Bike, Car, ImagePlus, LoaderCircle, MapPin, Truck } from "lucide-react";
+import { Bike, Car, ImagePlus, MapPin, Truck } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { PlaceSearch } from "@/components/ops/place-search";
 import { PartnerPhoto } from "@/components/ops/partner-photo";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { searchPlaces } from "@/lib/geocode";
 import { fileToImageDataUrl } from "@/lib/image";
 import {
   CITYWIDE_KM,
@@ -26,30 +26,8 @@ type PartnerFormProps = {
 };
 
 export function PartnerForm({ draft, isNew, onChange, onSave, onCancel }: PartnerFormProps) {
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [searching, setSearching] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
-
-  async function findPlace() {
-    const q = placeQuery.trim() || draft.address.trim();
-    if (q.length < 2) return;
-    setSearching(true);
-    try {
-      const hits = await searchPlaces(q);
-      const hit = hits[0];
-      if (!hit) {
-        toast.error("No place found. Drop a pin on the map.");
-        return;
-      }
-      onChange({ lat: hit.lat, lng: hit.lng, address: draft.address.trim() || hit.label });
-      toast.success("Hub pin dropped from search");
-    } catch {
-      toast.error("Search unavailable. Click the map instead.");
-    } finally {
-      setSearching(false);
-    }
-  }
 
   async function onPhoto(file: File | undefined) {
     if (!file) return;
@@ -145,19 +123,12 @@ export function PartnerForm({ draft, isNew, onChange, onSave, onCancel }: Partne
       </Field>
 
       <Field label="Hub address">
-        <div className="flex gap-2">
-          <Input
-            value={draft.address}
-            onChange={(event) => {
-              onChange({ address: event.target.value });
-              setPlaceQuery(event.target.value);
-            }}
-            placeholder="Street, area — Kano"
-          />
-          <Button type="button" variant="secondary" onClick={() => void findPlace()} disabled={searching}>
-            {searching ? <LoaderCircle className="animate-spin" /> : "Find"}
-          </Button>
-        </div>
+        <PlaceSearch
+          value={draft.address}
+          placeholder="Street, area, landmark — Kano"
+          onQuery={(address) => onChange({ address })}
+          onSelect={(hit) => onChange({ lat: hit.lat, lng: hit.lng, address: hit.label })}
+        />
       </Field>
 
       <div

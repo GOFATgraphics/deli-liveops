@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { PlaceSearch } from "@/components/ops/place-search";
 import { CARTO_ATTRIBUTION, VOYAGER_TILES } from "@/lib/carto";
+import { reverseGeocode, type GeoHit } from "@/lib/geocode";
 import { inKanoState, KANO_BOUNDS, MAP_ORIGIN } from "@/lib/seed";
 import type { Partner, PartnerDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -10,14 +12,14 @@ type HubMapProps = {
   draft: PartnerDraft | null;
   pickMode: boolean;
   onSelect: (id: string) => void;
-  onPick: (lat: number, lng: number) => void;
+  onPick: (lat: number, lng: number, address?: string) => void;
   className?: string;
 };
 
 type LeafletNS = typeof import("leaflet");
 type Basemap = "streets" | "satellite";
 
-function pinHtml(image: string | undefined, kind: "active" | "paused" | "selected" | "draft") {
+function pinHtml(image: string | undefined, kind: "active" | "paused" | "selected" | "draft" | "found") {
   if (image) {
     const cls = kind === "active" ? "hub-photo-pin" : `hub-photo-pin is-${kind}`;
     return `<div class="${cls}"><img src=${JSON.stringify(image)} alt=""></div>`;
@@ -29,7 +31,9 @@ function pinHtml(image: string | undefined, kind: "active" | "paused" | "selecte
         ? "hub-pin-dot is-selected"
         : kind === "paused"
           ? "hub-pin-dot is-paused"
-          : "hub-pin-dot";
+          : kind === "found"
+            ? "hub-pin-dot is-found"
+            : "hub-pin-dot";
   return `<div class="${cls}"></div>`;
 }
 
@@ -49,6 +53,7 @@ export function HubMap({
   className,
 }: HubMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layersRef = useRef<import("leaflet").LayerGroup | null>(null);
   const streetsRef = useRef<import("leaflet").TileLayer | null>(null);
@@ -61,6 +66,7 @@ export function HubMap({
   const didFitRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>("streets");
+  const [found, setFound] = useState<GeoHit | null>(null);
 
   onPickRef.current = onPick;
   onSelectRef.current = onSelect;
@@ -82,12 +88,13 @@ export function HubMap({
         [KANO_BOUNDS.north, KANO_BOUNDS.east],
       );
       const map = L.map(containerRef.current, {
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: true,
         minZoom: 8,
         maxBounds: bounds,
         maxBoundsViscosity: 0.85,
       }).setView([MAP_ORIGIN.lat, MAP_ORIGIN.lng], MAP_ORIGIN.zoom);
+      L.control.zoom({ position: "bottomleft" }).addTo(map);
 
       const streets = L.tileLayer(VOYAGER_TILES, {
         attribution: CARTO_ATTRIBUTION,
@@ -112,8 +119,18 @@ export function HubMap({
       map.on("click", (event) => {
         if (!pickModeRef.current) return;
         if (!inKanoState(event.latlng.lat, event.latlng.lng)) return;
-        onPickRef.current(event.latlng.lat, event.latlng.lng);
+        const lat = event.latlng.lat;
+        const lng = event.latlng.lng;
+        onPickRef.current(lat, lng);
+        void reverseGeocode(lat, lng).then((address) => {
+          if (address) onPickRef.current(lat, lng, address);
+        });
       });
+
+      if (searchRef.current) {
+        L.DomEvent.disableClickPropagation(searchRef.current);
+        L.DomEvent.disableScrollPropagation(searchRef.current);
+      }
 
       const resize = () => map.invalidateSize();
       window.addEventListener("resize", resize);
@@ -183,7 +200,7 @@ export function HubMap({
       marker.on("click", (event) => {
         L.DomEvent.stopPropagation(event);
         if (pickModeRef.current) {
-          onPickRef.current(partner.lat, partner.lng);
+          onPickRef.current(partner.lat, partner.lng, partner.address);
           return;
         }
         onSelectRef.current(partner.id);
@@ -228,11 +245,21 @@ export function HubMap({
       bounds.extend([draft.lat, draft.lng]);
     }
 
+    if (found) {
+      const icon = L.divIcon({
+        className: "hub-pin",
+        html: pinHtml(undefined, "found"),
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+      L.marker([found.lat, found.lng], { icon, zIndexOffset: 900 }).addTo(group);
+    }
+
     if (!didFitRef.current && bounds.isValid()) {
       didFitRef.current = true;
       map.fitBounds(bounds.pad(0.35), { maxZoom: 13, animate: false });
     }
-  }, [partners, selectedId, draft, mapReady]);
+  }, [partners, selectedId, draft, found, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -248,12 +275,25 @@ export function HubMap({
     }
   }, [selectedId, draft?.lat, draft?.lng, pickMode, mapReady]);
 
+  function locate(hit: GeoHit) {
+    setFound(hit);
+    const map = mapRef.current;
+    map?.flyTo([hit.lat, hit.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
+    onPickRef.current(hit.lat, hit.lng, hit.label);
+  }
+
   return (
     <div className={cn("relative min-h-60 overflow-hidden bg-map", className)}>
       <div
         ref={containerRef}
         className={cn("absolute inset-0 z-0", pickMode && "cursor-crosshair")}
       />
+      <div
+        ref={searchRef}
+        className="absolute top-3 left-3 z-20 w-[min(20rem,calc(100%-8rem))]"
+      >
+        <PlaceSearch onSelect={locate} />
+      </div>
       <div className="absolute top-3 right-3 z-20 flex overflow-hidden rounded-md bg-raised shadow-[var(--shadow-card)]">
         <button
           type="button"
@@ -277,8 +317,8 @@ export function HubMap({
         </button>
       </div>
       {pickMode ? (
-        <div className="pointer-events-none absolute top-3 left-14 z-20 rounded-full bg-raised/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)]">
-          Click the map to set the hub
+        <div className="pointer-events-none absolute bottom-3 left-14 z-20 rounded-full bg-raised/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)]">
+          Search or click the map to set the hub
         </div>
       ) : null}
     </div>

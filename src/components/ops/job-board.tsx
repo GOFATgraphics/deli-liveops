@@ -1,10 +1,10 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PlaceSearch } from "@/components/ops/place-search";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { searchPlaces } from "@/lib/geocode";
 import {
   addQuote,
   createJob,
@@ -162,24 +162,6 @@ function NewJobForm({
   const [constraints, setConstraints] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function locate(which: "pickup" | "dropoff") {
-    const q = which === "pickup" ? pickup : dropoff;
-    if (q.trim().length < 2) return;
-    const hits = await searchPlaces(q);
-    const hit = hits[0];
-    if (!hit) {
-      toast.error("No place in Kano for that.");
-      return;
-    }
-    if (which === "pickup") {
-      setPickup(hit.label);
-      setPickupPin({ lat: hit.lat, lng: hit.lng });
-    } else {
-      setDropoff(hit.label);
-      setDropoffPin({ lat: hit.lat, lng: hit.lng });
-    }
-  }
-
   async function submit() {
     if (!pickupPin || !dropoffPin) {
       toast.error("Find both landmarks on the map.");
@@ -225,20 +207,26 @@ function NewJobForm({
         <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+234 …" />
       </Field>
       <Field label="Pickup landmark">
-        <div className="flex gap-2">
-          <Input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder="Sabon Gari market gate" />
-          <Button type="button" variant="secondary" onClick={() => void locate("pickup")}>
-            Find
-          </Button>
-        </div>
+        <PlaceSearch
+          value={pickup}
+          placeholder="Sabon Gari market gate"
+          onQuery={setPickup}
+          onSelect={(hit) => {
+            setPickup(hit.label);
+            setPickupPin({ lat: hit.lat, lng: hit.lng });
+          }}
+        />
       </Field>
       <Field label="Dropoff landmark">
-        <div className="flex gap-2">
-          <Input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Nassarawa GRA" />
-          <Button type="button" variant="secondary" onClick={() => void locate("dropoff")}>
-            Find
-          </Button>
-        </div>
+        <PlaceSearch
+          value={dropoff}
+          placeholder="Nassarawa GRA"
+          onQuery={setDropoff}
+          onSelect={(hit) => {
+            setDropoff(hit.label);
+            setDropoffPin({ lat: hit.lat, lng: hit.lng });
+          }}
+        />
       </Field>
       {pickupPin && dropoffPin ? (
         <p className="text-sm text-muted tabular-nums">

@@ -126,6 +126,10 @@
   box-shadow: 0 0 0 6px rgb(42 8 0 / 0.22), 0 1px 4px rgb(42 8 0 / 0.35);
 }
 
+.hub-pin-dot.is-found {
+  box-shadow: 0 0 0 5px rgb(42 8 0 / 0.18), 0 1px 4px rgb(42 8 0 / 0.35);
+}
+
 .hub-photo-pin {
   width: 42px;
   height: 42px;

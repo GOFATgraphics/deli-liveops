@@ -234,7 +234,9 @@ export function OpsApp() {
             draft={draft}
             pickMode={panel.kind === "form"}
             onSelect={(id) => setPanel({ kind: "preview", id })}
-            onPick={(lat, lng) => patchDraft({ lat, lng })}
+            onPick={(lat, lng, address) => {
+              patchDraft({ lat, lng, ...(address ? { address } : {}) });
+            }}
           />
 
         </section>
