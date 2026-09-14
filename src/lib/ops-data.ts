@@ -146,6 +146,19 @@ const partnerInput = z.object({
   image: z.string(),
 });
 
+
+async function pushFleetsToCarto() {
+  try {
+    const { getSql } = await import("@/lib/db");
+    const { publishFleetsToCarto } = await import("@/lib/carto.server");
+    const sql = await getSql();
+    const rows = await sql.query<FleetJoin>(`${FLEET_SELECT} order by f.name asc`);
+    await publishFleetsToCarto(rows.map(fleetToPartner));
+  } catch (error) {
+    console.error("CARTO source publish failed", error);
+  }
+}
+
 export const upsertFleet = createServerFn({ method: "POST" })
   .validator(partnerInput)
   .handler(async ({ data }) => {
@@ -193,6 +206,7 @@ export const upsertFleet = createServerFn({ method: "POST" })
     const rows = await sql.query<FleetJoin>(`${FLEET_SELECT} where f.id = $1`, [id]);
     const partner = rows[0] ? fleetToPartner(rows[0]) : null;
     if (!partner) throw new Error("Fleet was not saved");
+    void pushFleetsToCarto();
     return partner;
   });
 
@@ -205,6 +219,7 @@ export const setFleetStatus = createServerFn({ method: "POST" })
       data.id,
       data.status,
     ]);
+    void pushFleetsToCarto();
     return { ok: true as const };
   });
 
@@ -214,6 +229,7 @@ export const removeFleet = createServerFn({ method: "POST" })
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     await sql.query(`delete from fleets where id = $1`, [data.id]);
+    void pushFleetsToCarto();
     return { ok: true as const };
   });
 

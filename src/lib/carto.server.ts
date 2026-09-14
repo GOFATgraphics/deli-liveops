@@ -75,3 +75,63 @@ export function probeCartoBasemap() {
   });
   return globalRef.__cartoProbe__;
 }
+
+const CARTO_SQL = "https://gcp-us-east1.api.carto.com/v3/sql/carto_dw/query";
+
+function bqString(value: string) {
+  return "'" + value.replace(/'/g, "''") + "'";
+}
+
+export async function cartoSql(q: string) {
+  const key = cartoApiKey();
+  if (!key) return;
+  const res = await fetch(CARTO_SQL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ q }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`CARTO SQL ${res.status}: ${text.slice(0, 240)}`);
+  }
+}
+
+type CartoFleet = {
+  id: string;
+  name: string;
+  address: string;
+  status: string;
+  radiusKm: number;
+  vehicles: string[];
+  lat: number;
+  lng: number;
+};
+
+/** Replace Builder sources shared.deli_fleets and shared.deli_coverage. */
+export async function publishFleetsToCarto(fleets: CartoFleet[]) {
+  const values = fleets.map((f) => {
+    const veh = bqString(f.vehicles.join(","));
+    return `(${bqString(f.id)}, ${bqString(f.name)}, ${bqString(f.address)}, ${bqString(f.status)}, ${Number(f.radiusKm)}, ${veh}, ${Number(f.lat)}, ${Number(f.lng)}, ST_GEOGPOINT(${Number(f.lng)}, ${Number(f.lat)}))`;
+  });
+  await cartoSql(`
+    CREATE TABLE IF NOT EXISTS \`shared.deli_fleets\` (
+      id STRING, name STRING, address STRING, status STRING,
+      radius_km INT64, vehicles STRING, lat FLOAT64, lng FLOAT64, geom GEOGRAPHY
+    )
+  `);
+  await cartoSql("TRUNCATE TABLE `shared.deli_fleets`");
+  if (values.length) {
+    await cartoSql(
+      `INSERT INTO \`shared.deli_fleets\` (id, name, address, status, radius_km, vehicles, lat, lng, geom) VALUES ${values.join(",")}`,
+    );
+  }
+  await cartoSql(`
+    CREATE OR REPLACE TABLE \`shared.deli_coverage\` AS
+    SELECT id, name, status, radius_km, ST_BUFFER(geom, radius_km * 1000) AS geom
+    FROM \`shared.deli_fleets\`
+  `);
+}
