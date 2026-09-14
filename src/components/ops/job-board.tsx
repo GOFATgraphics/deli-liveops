@@ -6,13 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  abortJob,
+  acceptQuote,
   addQuote,
+  advanceJob,
+  confirmDelivery,
   createJob,
   listJobEvents,
   listJobs,
   listQuotes,
+  markPaid,
+  recordPayout,
   type JobEventRow,
   type JobRow,
+  type JobStatus,
   type QuoteRow,
 } from "@/lib/ops-data";
 import { usePartners } from "@/lib/store";
@@ -125,7 +132,7 @@ export function JobBoard() {
             quotes={quotes}
             events={events}
             fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status }))}
-            onQuoted={async () => {
+            onChanged={async () => {
               const next = await refresh();
               const current = next.find((job) => job.id === selected.id);
               if (current) setSelectedId(current.id);
@@ -251,53 +258,111 @@ function NewJobForm({
   );
 }
 
+function phoneVisible(status: JobStatus) {
+  return [
+    "paid",
+    "assigned",
+    "picked_up",
+    "in_transit",
+    "delivery_confirmation_pending",
+    "delivered",
+    "settlement_pending",
+    "settled",
+  ].includes(status);
+}
+
+function maskPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return "Hidden until paid";
+  return `${phone.slice(0, 4)} ••• ${phone.slice(-3)}`;
+}
+
+const NEXT_LABEL: Partial<Record<JobStatus, string>> = {
+  paid: "Assign to fleet",
+  assigned: "Mark picked up",
+  picked_up: "Mark in transit",
+  in_transit: "Rider at dropoff",
+};
+
 function JobDetail({
   job,
   quotes,
   events,
   fleets,
-  onQuoted,
+  onChanged,
 }: {
   job: JobRow;
   quotes: QuoteRow[];
   events: JobEventRow[];
   fleets: { id: string; name: string; status: string }[];
-  onQuoted: () => Promise<void>;
+  onChanged: () => Promise<void>;
 }) {
   const [fleetId, setFleetId] = useState(fleets.find((f) => f.status === "active")?.id ?? "");
   const [total, setTotal] = useState("3500");
   const [fee, setFee] = useState("400");
   const [eta, setEta] = useState("45");
   const [terms, setTerms] = useState("Includes 10 min waiting. Cancel before pickup at no charge.");
+  const [payRef, setPayRef] = useState("");
+  const [code, setCode] = useState("");
+  const [payoutNote, setPayoutNote] = useState("");
+  const [abortReason, setAbortReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const selectedQuote = quotes.find((q) => q.id === job.selectedQuoteId) ?? quotes.find((q) => q.status === "accepted");
+  const canQuote = job.status === "quote_pending" || job.status === "quoted";
+  const open = !["settled", "cancelled", "failed", "refunded", "delivered", "settlement_pending", "disputed"].includes(job.status);
+
+  async function run(fn: () => Promise<unknown>, ok: string) {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(ok);
+      await onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update job");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submitQuote() {
-    try {
-      await addQuote({
-        data: {
-          jobId: job.id,
-          fleetId,
-          totalNgn: Number(total),
-          deliFeeNgn: Number(fee),
-          etaMinutes: Number(eta),
-          terms,
-          hoursValid: 6,
-        },
-      });
-      toast.success("Quote on the board");
-      await onQuoted();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not add quote");
-    }
+    await run(
+      () =>
+        addQuote({
+          data: {
+            jobId: job.id,
+            fleetId,
+            totalNgn: Number(total),
+            deliFeeNgn: Number(fee),
+            etaMinutes: Number(eta),
+            terms,
+            hoursValid: 6,
+          },
+        }),
+      "Quote on the board",
+    );
   }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 md:p-6">
       <div>
         <p className="font-mono text-sm text-muted">{job.publicId}</p>
-        <h2 className="font-display mt-1 text-2xl tracking-tight">{job.pickupLandmark} → {job.dropoffLandmark}</h2>
+        <h2 className="font-display mt-1 text-2xl tracking-tight">
+          {job.pickupLandmark} → {job.dropoffLandmark}
+        </h2>
         <p className="mt-1 text-sm text-muted">
           {job.distanceKm} km · {job.goods} · {job.status.replaceAll("_", " ")}
         </p>
+      </div>
+
+      <div className="rounded-xl bg-bg p-4">
+        <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Sender</p>
+        <p className="mt-2 text-sm font-medium">{job.senderName}</p>
+        <p className="mt-1 font-mono text-sm text-muted">
+          {phoneVisible(job.status) ? job.senderPhone : maskPhone(job.senderPhone)}
+        </p>
+        {!phoneVisible(job.status) ? (
+          <p className="mt-1 text-xs text-subtle">Full number unlocks after payment is marked.</p>
+        ) : null}
       </div>
 
       <div className="rounded-xl bg-bg p-4">
@@ -313,48 +378,192 @@ function JobDetail({
                   <span className="tabular-nums">{money(quote.totalNgn)}</span>
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  Fleet {money(quote.fleetPayoutNgn)} · Deli {money(quote.deliFeeNgn)} · {quote.etaMinutes} min · fee on {quote.paymentFeePayer}
+                  Fleet {money(quote.fleetPayoutNgn)} · Deli {money(quote.deliFeeNgn)} · {quote.etaMinutes} min · {quote.status}
                 </p>
                 {quote.terms ? <p className="mt-1 text-xs text-subtle">{quote.terms}</p> : null}
+                {canQuote && quote.status === "offered" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    disabled={busy}
+                    onClick={() => void run(() => acceptQuote({ data: { jobId: job.id, quoteId: quote.id } }), "Quote accepted")}
+                  >
+                    Accept this quote
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label>Fleet</Label>
-            <select
-              value={fleetId}
-              onChange={(e) => setFleetId(e.target.value)}
-              className="h-11 rounded-md bg-raised px-3 text-sm shadow-[var(--shadow-hairline)]"
+        {canQuote ? (
+          <>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label>Fleet</Label>
+                <select
+                  value={fleetId}
+                  onChange={(e) => setFleetId(e.target.value)}
+                  className="h-11 rounded-md bg-raised px-3 text-sm shadow-[var(--shadow-hairline)]"
+                >
+                  {fleets
+                    .filter((f) => f.status === "active")
+                    .map((fleet) => (
+                      <option key={fleet.id} value={fleet.id}>
+                        {fleet.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <Field label="Total NGN">
+                <Input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="numeric" />
+              </Field>
+              <Field label="Deli fee NGN">
+                <Input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="numeric" />
+              </Field>
+              <Field label="ETA minutes">
+                <Input value={eta} onChange={(e) => setEta(e.target.value)} inputMode="numeric" />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Terms">
+                  <Textarea value={terms} onChange={(e) => setTerms(e.target.value)} />
+                </Field>
+              </div>
+            </div>
+            <Button type="button" className="mt-3" onClick={() => void submitQuote()} disabled={!fleetId || busy}>
+              Add quote
+            </Button>
+          </>
+        ) : null}
+      </div>
+
+      {job.status === "accepted" ? (
+        <div className="rounded-xl bg-bg p-4">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Payment</p>
+          <p className="mt-2 text-sm text-muted">
+            Sender pays {selectedQuote ? money(selectedQuote.totalNgn) : "the accepted total"}. Hold it on the desk until delivery.
+          </p>
+          <Field label="Transfer reference">
+            <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Opay / bank ref" />
+          </Field>
+          <Button
+            type="button"
+            className="mt-3"
+            disabled={busy || payRef.trim().length < 2}
+            onClick={() => void run(() => markPaid({ data: { jobId: job.id, reference: payRef } }), "Marked paid")}
+          >
+            Mark paid
+          </Button>
+        </div>
+      ) : null}
+
+      {job.deliveryCode && phoneVisible(job.status) ? (
+        <div className="rounded-xl bg-bg p-4">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Delivery code</p>
+          <p className="font-display mt-2 text-3xl tracking-[0.28em] tabular-nums">{job.deliveryCode}</p>
+          <p className="mt-1 text-sm text-muted">Read this to the recipient. The fleet does not need an app.</p>
+        </div>
+      ) : null}
+
+      {NEXT_LABEL[job.status] ? (
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void run(() => advanceJob({ data: { jobId: job.id } }), NEXT_LABEL[job.status] ?? "Updated")}
+        >
+          {NEXT_LABEL[job.status]}
+        </Button>
+      ) : null}
+
+      {job.status === "delivery_confirmation_pending" || job.status === "in_transit" ? (
+        <div className="rounded-xl bg-bg p-4">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Confirm delivery</p>
+          <Field label="Code from recipient">
+            <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" />
+          </Field>
+          <Button
+            type="button"
+            className="mt-3"
+            disabled={busy || code.length !== 4}
+            onClick={() => void run(() => confirmDelivery({ data: { jobId: job.id, code } }), "Delivered")}
+          >
+            Confirm delivery
+          </Button>
+        </div>
+      ) : null}
+
+      {job.status === "delivered" || job.status === "settlement_pending" ? (
+        <div className="rounded-xl bg-bg p-4">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Payout</p>
+          <p className="mt-2 text-sm text-muted">
+            Send {selectedQuote ? money(selectedQuote.fleetPayoutNgn) : "the fleet share"} to the partner, then log it.
+          </p>
+          <Field label="What you sent">
+            <Input
+              value={payoutNote}
+              onChange={(e) => setPayoutNote(e.target.value)}
+              placeholder="Sent to SwiftWheel, Opay 9:14pm"
+            />
+          </Field>
+          <Button
+            type="button"
+            className="mt-3"
+            disabled={busy || payoutNote.trim().length < 2}
+            onClick={() =>
+              void run(
+                () =>
+                  recordPayout({
+                    data: {
+                      jobId: job.id,
+                      note: payoutNote,
+                      amountNgn: selectedQuote?.fleetPayoutNgn ?? 1,
+                    },
+                  }),
+                "Settled",
+              )
+            }
+          >
+            Record payout
+          </Button>
+        </div>
+      ) : null}
+
+      {job.payoutNote ? <p className="text-sm text-muted">Payout: {job.payoutNote}</p> : null}
+
+      {open ? (
+        <div className="rounded-xl bg-bg p-4">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Stop this job</p>
+          <Field label="Reason">
+            <Input value={abortReason} onChange={(e) => setAbortReason(e.target.value)} placeholder="No rider / sender cancelled" />
+          </Field>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || abortReason.trim().length < 2}
+              onClick={() =>
+                void run(
+                  () => abortJob({ data: { jobId: job.id, status: "cancelled", reason: abortReason } }),
+                  "Cancelled",
+                )
+              }
             >
-              {fleets.filter((f) => f.status === "active").map((fleet) => (
-                <option key={fleet.id} value={fleet.id}>
-                  {fleet.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field label="Total NGN">
-            <Input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="numeric" />
-          </Field>
-          <Field label="Deli fee NGN">
-            <Input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="numeric" />
-          </Field>
-          <Field label="ETA minutes">
-            <Input value={eta} onChange={(e) => setEta(e.target.value)} inputMode="numeric" />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Terms">
-              <Textarea value={terms} onChange={(e) => setTerms(e.target.value)} />
-            </Field>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={busy || abortReason.trim().length < 2}
+              onClick={() =>
+                void run(() => abortJob({ data: { jobId: job.id, status: "failed", reason: abortReason } }), "Failed")
+              }
+            >
+              Failed
+            </Button>
           </div>
         </div>
-        <Button type="button" className="mt-3" onClick={() => void submitQuote()} disabled={!fleetId}>
-          Add quote
-        </Button>
-      </div>
+      ) : null}
 
       <div>
         <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Timeline</p>
@@ -367,6 +576,9 @@ function JobDetail({
               {event.toStatus ? ` → ${event.toStatus.replaceAll("_", " ")}` : ""}
               {" · "}
               {event.actor}
+              {event.payload?.reason ? ` · ${String(event.payload.reason)}` : ""}
+              {event.payload?.reference ? ` · ${String(event.payload.reference)}` : ""}
+              {event.payload?.note ? ` · ${String(event.payload.note)}` : ""}
             </li>
           ))}
         </ul>

@@ -44,6 +44,8 @@ export type JobRow = {
   senderPhone: string;
   selectedQuoteId: string | null;
   selectedFleetId: string | null;
+  deliveryCode: string | null;
+  payoutNote: string | null;
   createdAt: string;
 };
 
@@ -68,6 +70,7 @@ export type JobEventRow = {
   kind: string;
   fromStatus: string | null;
   toStatus: string | null;
+  payload: Record<string, string>;
   actor: string;
   at: string;
 };
@@ -233,6 +236,21 @@ export const removeFleet = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+function stringifyPayload(value: unknown): Record<string, string> {
+  const raw =
+    typeof value === "string"
+      ? (JSON.parse(value) as Record<string, unknown>)
+      : value && typeof value === "object"
+        ? (value as Record<string, unknown>)
+        : {};
+  const out: Record<string, string> = {};
+  for (const [key, item] of Object.entries(raw)) {
+    if (item == null) continue;
+    out[key] = String(item);
+  }
+  return out;
+}
+
 function mapJob(row: Record<string, unknown>): JobRow {
   return {
     id: String(row.id),
@@ -253,6 +271,8 @@ function mapJob(row: Record<string, unknown>): JobRow {
     senderPhone: String(row.sender_phone ?? ""),
     selectedQuoteId: row.selected_quote_id ? String(row.selected_quote_id) : null,
     selectedFleetId: row.selected_fleet_id ? String(row.selected_fleet_id) : null,
+    deliveryCode: row.delivery_code ? String(row.delivery_code) : null,
+    payoutNote: row.payout_note ? String(row.payout_note) : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
   };
 }
@@ -409,9 +429,10 @@ export const listJobEvents = createServerFn({ method: "GET" })
       kind: string;
       from_status: string | null;
       to_status: string | null;
+      payload: Record<string, unknown> | string | null;
       actor: string;
       at: string;
-    }>(`select id, kind, from_status, to_status, actor, at from job_events where job_id = $1 order by at desc`, [
+    }>(`select id, kind, from_status, to_status, payload, actor, at from job_events where job_id = $1 order by at desc`, [
       data.jobId,
     ]);
     return rows.map((row) => ({
@@ -419,7 +440,195 @@ export const listJobEvents = createServerFn({ method: "GET" })
       kind: row.kind,
       fromStatus: row.from_status,
       toStatus: row.to_status,
+      payload: stringifyPayload(row.payload),
       actor: row.actor,
       at: new Date(row.at).toISOString(),
     })) satisfies JobEventRow[];
+  });
+
+
+const OPEN_STATUSES: JobStatus[] = [
+  "requested",
+  "quote_pending",
+  "quoted",
+  "accepted",
+  "payment_pending",
+  "paid",
+  "assigned",
+  "picked_up",
+  "in_transit",
+  "delivery_confirmation_pending",
+];
+
+const ADVANCE: Partial<Record<JobStatus, JobStatus>> = {
+  paid: "assigned",
+  assigned: "picked_up",
+  picked_up: "in_transit",
+  in_transit: "delivery_confirmation_pending",
+  delivered: "settlement_pending",
+};
+
+function fourDigit() {
+  return String(1000 + Math.floor(Math.random() * 9000));
+}
+
+async function loadJob(id: string) {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const rows = await sql.query(`select * from jobs where id = $1`, [id]);
+  if (!rows[0]) throw new Error("Job not found");
+  return { sql, job: mapJob(rows[0] as Record<string, unknown>), raw: rows[0] as Record<string, unknown> };
+}
+
+async function writeStatus(
+  sql: Awaited<ReturnType<(typeof import("@/lib/db"))["getSql"]>>,
+  job: JobRow,
+  to: JobStatus,
+  kind: string,
+  payload: Record<string, unknown> = {},
+) {
+  await sql.query(`update jobs set status = $2, updated_at = now(), actor = 'ops' where id = $1`, [job.id, to]);
+  await sql.query(
+    `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+     values ($1,$2,$3,$4,$5,$6::jsonb,'ops')`,
+    [crypto.randomUUID(), job.id, kind, job.status, to, JSON.stringify(payload)],
+  );
+}
+
+export const acceptQuote = createServerFn({ method: "POST" })
+  .validator(z.object({ jobId: z.string(), quoteId: z.string() }))
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    if (job.status !== "quoted" && job.status !== "quote_pending") {
+      throw new Error("Quotes can only be accepted while the job is still being quoted.");
+    }
+    const quotes = await sql.query<{ id: string; status: string }>(
+      `select id, status from quotes where job_id = $1`,
+      [data.jobId],
+    );
+    const chosen = quotes.find((q) => q.id === data.quoteId);
+    if (!chosen) throw new Error("Quote not found");
+    if (chosen.status !== "offered") throw new Error("That quote is no longer offered.");
+    const fleet = await sql.query<{ fleet_id: string }>(`select fleet_id from quotes where id = $1`, [data.quoteId]);
+    const fleetId = fleet[0]?.fleet_id;
+    if (!fleetId) throw new Error("Quote has no fleet");
+    await sql.query(`update quotes set status = 'accepted' where id = $1`, [data.quoteId]);
+    await sql.query(`update quotes set status = 'withdrawn' where job_id = $1 and id <> $2 and status = 'offered'`, [
+      data.jobId,
+      data.quoteId,
+    ]);
+    await sql.query(
+      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, status = 'accepted', updated_at = now() where id = $1`,
+      [data.jobId, data.quoteId, fleetId],
+    );
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'quote_accepted',$3,'accepted',$4::jsonb,'ops')`,
+      [crypto.randomUUID(), data.jobId, job.status, JSON.stringify({ quoteId: data.quoteId, fleetId })],
+    );
+    return { ok: true as const };
+  });
+
+export const markPaid = createServerFn({ method: "POST" })
+  .validator(z.object({ jobId: z.string(), reference: z.string().min(2) }))
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    if (job.status !== "accepted" && job.status !== "payment_pending") {
+      throw new Error("Mark paid only after a quote is accepted.");
+    }
+    if (!job.selectedQuoteId || !job.selectedFleetId) throw new Error("Accept a quote first.");
+    const quote = await sql.query<{ total_ngn: number }>(`select total_ngn from quotes where id = $1`, [
+      job.selectedQuoteId,
+    ]);
+    const amount = Number(quote[0]?.total_ngn ?? 0);
+    const code = job.deliveryCode ?? fourDigit();
+    await sql.query(
+      `insert into payments (id, job_id, quote_id, amount_ngn, currency, provider, provider_ref, status, paid_at)
+       values ($1,$2,$3,$4,'NGN','desk_transfer',$5,'paid', now())`,
+      [crypto.randomUUID(), job.id, job.selectedQuoteId, amount, data.reference.trim()],
+    );
+    await sql.query(`update jobs set delivery_code = $2, status = 'paid', updated_at = now(), actor = 'ops' where id = $1`, [
+      job.id,
+      code,
+    ]);
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'paid',$3,'paid',$4::jsonb,'ops')`,
+      [crypto.randomUUID(), job.id, job.status, JSON.stringify({ reference: data.reference.trim(), amountNgn: amount })],
+    );
+    return { ok: true as const };
+  });
+
+export const advanceJob = createServerFn({ method: "POST" })
+  .validator(z.object({ jobId: z.string() }))
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    const to = ADVANCE[job.status];
+    if (!to) throw new Error("No next step from this status.");
+    if (to === "delivery_confirmation_pending" && !job.deliveryCode) {
+      await sql.query(`update jobs set delivery_code = $2 where id = $1`, [job.id, fourDigit()]);
+    }
+    await writeStatus(sql, job, to, "status");
+    return { ok: true as const };
+  });
+
+export const confirmDelivery = createServerFn({ method: "POST" })
+  .validator(z.object({ jobId: z.string(), code: z.string().min(4).max(4) }))
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    if (job.status !== "delivery_confirmation_pending" && job.status !== "in_transit") {
+      throw new Error("Confirm delivery only when the rider is at dropoff.");
+    }
+    if (!job.deliveryCode || job.deliveryCode !== data.code.trim()) {
+      throw new Error("Code does not match.");
+    }
+    await writeStatus(sql, job, "delivered", "delivered", { code: data.code.trim() });
+    return { ok: true as const };
+  });
+
+export const recordPayout = createServerFn({ method: "POST" })
+  .validator(z.object({ jobId: z.string(), note: z.string().min(2), amountNgn: z.number().int().positive() }))
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    if (job.status !== "delivered" && job.status !== "settlement_pending") {
+      throw new Error("Record payout after delivery.");
+    }
+    if (!job.selectedFleetId) throw new Error("No fleet on this job.");
+    await sql.query(
+      `insert into payouts (id, job_id, fleet_id, amount_ngn, provider, provider_ref, status, approved_by, released_at)
+       values ($1,$2,$3,$4,'desk_transfer',$5,'sent','ops', now())`,
+      [crypto.randomUUID(), job.id, job.selectedFleetId, data.amountNgn, data.note.trim()],
+    );
+    await sql.query(`update jobs set payout_note = $2, status = 'settled', updated_at = now(), actor = 'ops' where id = $1`, [
+      job.id,
+      data.note.trim(),
+    ]);
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'payout',$3,'settled',$4::jsonb,'ops')`,
+      [
+        crypto.randomUUID(),
+        job.id,
+        job.status,
+        JSON.stringify({ note: data.note.trim(), amountNgn: data.amountNgn }),
+      ],
+    );
+    return { ok: true as const };
+  });
+
+export const abortJob = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      jobId: z.string(),
+      status: z.enum(["cancelled", "failed"]),
+      reason: z.string().min(2),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { sql, job } = await loadJob(data.jobId);
+    if (!OPEN_STATUSES.includes(job.status) && job.status !== "delivery_confirmation_pending") {
+      throw new Error("This job is already closed.");
+    }
+    await writeStatus(sql, job, data.status, data.status, { reason: data.reason.trim() });
+    return { ok: true as const };
   });
