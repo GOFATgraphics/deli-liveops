@@ -44,6 +44,11 @@ function Login() {
           email: email.trim(),
           password,
           name: name.trim(),
+          fetchOptions: {
+            onSuccess(ctx) {
+              rememberSessionToken(ctx.response);
+            },
+          },
         });
         if (signUpError) throw new Error(signUpError.message || "Could not create the account.");
         await authClient.getSession();
@@ -52,6 +57,11 @@ function Login() {
         const { error: signInError } = await authClient.signIn.email({
           email: email.trim(),
           password,
+          fetchOptions: {
+            onSuccess(ctx) {
+              rememberSessionToken(ctx.response);
+            },
+          },
         });
         if (signInError) throw new Error(signInError.message || "Email or password is wrong.");
         await authClient.getSession();
@@ -163,6 +173,16 @@ function Login() {
       </div>
     </main>
   );
+}
+
+function rememberSessionToken(response: { headers: { get(name: string): string | null } } | undefined) {
+  const token = response?.headers.get("set-auth-token");
+  if (!token || typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem("grok-auth.bearer-token", token);
+  } catch {
+    /* preview storage can be blocked */
+  }
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
