@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   cartoApiKey,
   esriStreetTileUpstream,
+  probeCartoBasemap,
   voyagerTileUpstream,
 } from "@/lib/carto.server";
 
@@ -11,7 +12,12 @@ export const Route = createFileRoute("/api/tiles")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         if (url.searchParams.has("status")) {
-          return Response.json({ configured: Boolean(cartoApiKey()) });
+          const probe = await probeCartoBasemap();
+          return Response.json({
+            configured: Boolean(cartoApiKey()),
+            valid: probe.valid,
+            provider: probe.provider,
+          });
         }
 
         const z = parseInt(url.searchParams.get("z") ?? "", 10);
@@ -24,8 +30,11 @@ export const Route = createFileRoute("/api/tiles")({
           return new Response("Bad tile", { status: 400 });
         }
 
-        const signed = Boolean(cartoApiKey());
-        const upstream = signed ? voyagerTileUpstream(z, x, y) : esriStreetTileUpstream(z, x, y);
+        const probe = await probeCartoBasemap();
+        const useCarto = probe.provider === "carto";
+        const upstream = useCarto
+          ? voyagerTileUpstream(z, x, y)
+          : esriStreetTileUpstream(z, x, y);
         const res = await fetch(upstream, {
           headers: { "User-Agent": "DeliLiveOps/1.0" },
           signal: AbortSignal.timeout(8000),
@@ -37,9 +46,10 @@ export const Route = createFileRoute("/api/tiles")({
         return new Response(body, {
           headers: {
             "Content-Type": res.headers.get("content-type") || "image/png",
-            "Cache-Control": signed
+            "Cache-Control": useCarto
               ? "public, max-age=86400, s-maxage=604800, immutable"
-              : "public, max-age=300",
+              : "public, max-age=3600",
+            "X-Deli-Basemap": probe.provider,
           },
         });
       },
