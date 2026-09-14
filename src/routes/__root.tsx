@@ -4,7 +4,7 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Deli LiveOps";
+const APP_NAME = "Deli";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#f4f4f5" },
       {
         name: "description",
-        content: "Register delivery businesses, set coverage, and keep the partner desk in one place.",
+        content: "Request a pickup and dropoff in Kano.",
       },
     ],
     links: [

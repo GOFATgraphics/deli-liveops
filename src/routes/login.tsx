@@ -7,7 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveMySender } from "@/lib/sender-data";
 
-export const Route = createFileRoute("/login")({ component: Login });
+export const Route = createFileRoute("/login")({
+  component: Login,
+  head: () => ({
+    meta: [{ title: "Deli — Sign in" }],
+  }),
+});
 
 function Login() {
   const { user, isPending } = useCurrentUserState();
@@ -26,7 +31,7 @@ function Login() {
       </main>
     );
   }
-  if (user) return <Navigate to="/send" />;
+  if (user) return <Navigate to="/" />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -51,7 +56,7 @@ function Login() {
         if (signInError) throw new Error(signInError.message || "Email or password is wrong.");
         await authClient.getSession();
       }
-      window.location.assign("/send");
+      window.location.assign("/");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not sign in");
       setBusy(false);
@@ -141,7 +146,7 @@ function Login() {
                   type="button"
                   variant="secondary"
                   className="w-full"
-                  onClick={() => void signIn(provider.providerId, { callbackURL: "/send", errorCallbackURL: "/login" })}
+                  onClick={() => void signIn(provider.providerId, { callbackURL: "/", errorCallbackURL: "/login" })}
                 >
                   Continue with {provider.label}
                 </Button>
@@ -151,8 +156,8 @@ function Login() {
         ) : null}
 
         <p className="mt-8 text-center text-sm text-muted">
-          <Link to="/" className="underline-offset-4 hover:underline">
-            Staff desk
+          <Link to="/ops" className="underline-offset-4 hover:underline">
+            Staff admin
           </Link>
         </p>
       </div>

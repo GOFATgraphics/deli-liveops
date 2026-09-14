@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { OpsApp } from "@/components/ops/ops-app";
+import { SenderApp } from "@/components/send/sender-app";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+  component: Home,
+  head: () => ({
+    meta: [
+      { title: "Deli" },
+      { name: "description", content: "Request a pickup and dropoff in Kano." },
+    ],
+  }),
+});
 
 function Home() {
-  return <OpsApp />;
+  return <SenderApp />;
 }

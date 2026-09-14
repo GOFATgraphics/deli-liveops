@@ -1,6 +1,6 @@
-# Deli LiveOps
+# Deli
 
-Ops desk for Deli — last-mile delivery in a tight **Kano** zone. Fleets, jobs, quotes, and an event log live in **Postgres** (Neon in production, embedded PGLite in preview).
+Kano last-mile. **Senders** request a pickup on the public app. Staff run fleets and jobs from **Admin** (`/ops`) — the LiveOps desk.
 
 ## Data
 

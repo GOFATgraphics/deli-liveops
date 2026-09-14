@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PlaceSearch } from "@/components/ops/place-search";
@@ -61,9 +60,6 @@ function SenderHome() {
           <p className="mt-1 truncate text-sm text-muted">{user?.displayName ?? "Your jobs"}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <Link to="/" className="hidden text-sm text-muted underline-offset-4 hover:underline sm:inline">
-            Desk
-          </Link>
           <UserButton />
         </div>
       </header>

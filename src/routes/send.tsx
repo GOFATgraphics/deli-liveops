@@ -1,13 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { SenderApp } from "@/components/send/sender-app";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/send")({
-  component: SendPage,
-  head: () => ({
-    meta: [{ title: "Deli — Send" }],
-  }),
+  beforeLoad: () => {
+    throw redirect({ to: "/" });
+  },
 });
-
-function SendPage() {
-  return <SenderApp />;
-}

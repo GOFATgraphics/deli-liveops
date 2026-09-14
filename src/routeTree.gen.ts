@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OpsRouteImport } from './routes/ops'
 import { Route as SendRouteImport } from './routes/send'
 import { Route as ApiTilesRouteImport } from './routes/api/tiles'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpsRoute = OpsRouteImport.update({
+  id: '/ops',
+  path: '/ops',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SendRoute = SendRouteImport.update({
@@ -44,6 +50,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/ops': typeof OpsRoute
   '/send': typeof SendRoute
   '/api/tiles': typeof ApiTilesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/ops': typeof OpsRoute
   '/send': typeof SendRoute
   '/api/tiles': typeof ApiTilesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -59,21 +67,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/ops': typeof OpsRoute
   '/send': typeof SendRoute
   '/api/tiles': typeof ApiTilesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/send' | '/api/tiles' | '/api/auth/$'
+  fullPaths: '/' | '/login' | '/ops' | '/send' | '/api/tiles' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/send' | '/api/tiles' | '/api/auth/$'
-  id: '__root__' | '/' | '/login' | '/send' | '/api/tiles' | '/api/auth/$'
+  to: '/' | '/login' | '/ops' | '/send' | '/api/tiles' | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/ops'
+    | '/send'
+    | '/api/tiles'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  OpsRoute: typeof OpsRoute
   SendRoute: typeof SendRoute
   ApiTilesRoute: typeof ApiTilesRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -93,6 +110,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ops': {
+      id: '/ops'
+      path: '/ops'
+      fullPath: '/ops'
+      preLoaderRoute: typeof OpsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/send': {
@@ -122,6 +146,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  OpsRoute: OpsRoute,
   SendRoute: SendRoute,
   ApiTilesRoute: ApiTilesRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
