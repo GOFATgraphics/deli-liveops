@@ -60,7 +60,7 @@ function searchGazetteer(query: string): GeoHit[] {
       },
     });
   }
-  return ranked.sort((a, b) => b.s - a.s).slice(0, 6).map((row) => row.hit);
+  return ranked.sort((a, b) => b.s - a.s).slice(0, 8).map((row) => row.hit);
 }
 
 async function photonSearch(q: string): Promise<GeoHit[]> {

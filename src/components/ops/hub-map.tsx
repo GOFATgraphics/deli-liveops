@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PlaceSearch } from "@/components/ops/place-search";
 import { CARTO_ATTRIBUTION, VOYAGER_TILES } from "@/lib/carto";
 import { reverseGeocode, type GeoHit } from "@/lib/geocode";
+import { KANO_PLACES } from "@/lib/kano-places";
 import { inKanoState, KANO_BOUNDS, MAP_ORIGIN } from "@/lib/seed";
 import type { Partner, PartnerDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ export function HubMap({
   const searchRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layersRef = useRef<import("leaflet").LayerGroup | null>(null);
+  const placesRef = useRef<import("leaflet").LayerGroup | null>(null);
   const streetsRef = useRef<import("leaflet").TileLayer | null>(null);
   const satelliteRef = useRef<import("leaflet").TileLayer | null>(null);
   const leafletRef = useRef<LeafletNS | null>(null);
@@ -67,6 +69,8 @@ export function HubMap({
   const [mapReady, setMapReady] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>("streets");
   const [found, setFound] = useState<GeoHit | null>(null);
+  const [showPlaces, setShowPlaces] = useState(true);
+  const [zoom, setZoom] = useState(MAP_ORIGIN.zoom);
 
   onPickRef.current = onPick;
   onSelectRef.current = onSelect;
@@ -114,7 +118,11 @@ export function HubMap({
 
       const group = L.layerGroup().addTo(map);
       layersRef.current = group;
+      const places = L.layerGroup().addTo(map);
+      placesRef.current = places;
       mapRef.current = map;
+      setZoom(map.getZoom());
+      map.on("zoomend", () => setZoom(map.getZoom()));
 
       map.on("click", (event) => {
         if (!pickModeRef.current) return;
@@ -154,6 +162,7 @@ export function HubMap({
       mapRef.current?.remove();
       mapRef.current = null;
       layersRef.current = null;
+      placesRef.current = null;
       streetsRef.current = null;
       satelliteRef.current = null;
     };
@@ -275,7 +284,45 @@ export function HubMap({
     }
   }, [selectedId, draft?.lat, draft?.lng, pickMode, mapReady]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    const L = leafletRef.current;
+    const group = placesRef.current;
+    if (!map || !L || !group || !mapReady) return;
+    group.clearLayers();
+    if (!showPlaces) return;
+    const list =
+      zoom >= 13
+        ? KANO_PLACES
+        : KANO_PLACES.filter((place) => place.kind === "corridor" || place.kind === "landmark");
+    for (const place of list) {
+      const icon = L.divIcon({
+        className: "hub-pin",
+        html: `<div class="hub-place-dot is-${place.kind}"></div>`,
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
+      });
+      const marker = L.marker([place.lat, place.lng], { icon, zIndexOffset: -200, keyboard: false });
+      marker.bindTooltip(`${place.name} · ${place.area}`, {
+        direction: "top",
+        offset: [0, -6],
+        opacity: 0.95,
+      });
+      marker.on("click", (event) => {
+        L.DomEvent.stopPropagation(event);
+        const label = `${place.name}, ${place.area}`;
+        if (pickModeRef.current) {
+          onPickRef.current(place.lat, place.lng, label);
+          return;
+        }
+        map.flyTo([place.lat, place.lng], Math.max(map.getZoom(), 15), { duration: 0.4 });
+      });
+      marker.addTo(group);
+    }
+  }, [mapReady, showPlaces, zoom]);
+
   function locate(hit: GeoHit) {
+
     setFound(hit);
     const map = mapRef.current;
     map?.flyTo([hit.lat, hit.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
@@ -295,6 +342,16 @@ export function HubMap({
         <PlaceSearch onSelect={locate} />
       </div>
       <div className="absolute top-3 right-3 z-20 flex overflow-hidden rounded-md bg-raised shadow-[var(--shadow-card)]">
+        <button
+          type="button"
+          onClick={() => setShowPlaces((v) => !v)}
+          className={cn(
+            "h-11 px-3 text-sm font-medium",
+            showPlaces ? "bg-fg text-accent-fg" : "text-muted hover:text-fg",
+          )}
+        >
+          Places
+        </button>
         <button
           type="button"
           onClick={() => setBasemap("streets")}
