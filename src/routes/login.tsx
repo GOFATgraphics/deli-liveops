@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -176,12 +176,6 @@ function Login() {
             </div>
           </>
         ) : null}
-
-        <p className="mt-8 text-center text-sm text-muted">
-          <Link to="/admin" className="underline-offset-4 hover:underline">
-            Staff admin
-          </Link>
-        </p>
       </div>
     </main>
   );
