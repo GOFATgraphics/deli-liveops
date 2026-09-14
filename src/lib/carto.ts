@@ -2,7 +2,7 @@ export const CARTO_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a> · Esri';
 
 /** Same-origin proxy. The CARTO key never leaves the server. */
-export const VOYAGER_TILES = "/api/tiles?z={z}&x={x}&y={y}";
+export const VOYAGER_TILES = "/api/tiles?z={z}&x={x}&y={y}&v=2";
 
 export type CartoStatus = {
   configured: boolean;
