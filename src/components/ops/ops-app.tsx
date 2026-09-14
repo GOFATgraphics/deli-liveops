@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -169,6 +170,9 @@ export function OpsApp() {
             </button>
           </div>
           <CartoConnect />
+          <Button variant="secondary" asChild>
+            <Link to="/send">Sender</Link>
+          </Button>
           {desk === "partners" ? (
             <Button
               type="button"
@@ -198,6 +202,12 @@ export function OpsApp() {
         >
           Jobs
         </button>
+        <Link
+          to="/send"
+          className="flex h-11 flex-1 items-center justify-center rounded-md bg-raised text-sm font-medium"
+        >
+          Sender
+        </Link>
       </div>
 
       {desk === "jobs" ? (

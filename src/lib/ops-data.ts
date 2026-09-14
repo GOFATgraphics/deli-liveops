@@ -251,7 +251,7 @@ function stringifyPayload(value: unknown): Record<string, string> {
   return out;
 }
 
-function mapJob(row: Record<string, unknown>): JobRow {
+export function mapJob(row: Record<string, unknown>): JobRow {
   return {
     id: String(row.id),
     publicId: String(row.public_id),

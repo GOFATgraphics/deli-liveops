@@ -308,7 +308,8 @@ function JobDetail({
   const [abortReason, setAbortReason] = useState("");
   const [busy, setBusy] = useState(false);
   const selectedQuote = quotes.find((q) => q.id === job.selectedQuoteId) ?? quotes.find((q) => q.status === "accepted");
-  const canQuote = job.status === "quote_pending" || job.status === "quoted";
+  const canQuote =
+    job.status === "requested" || job.status === "quote_pending" || job.status === "quoted";
   const open = !["settled", "cancelled", "failed", "refunded", "delivered", "settlement_pending", "disputed"].includes(job.status);
 
   async function run(fn: () => Promise<unknown>, ok: string) {
