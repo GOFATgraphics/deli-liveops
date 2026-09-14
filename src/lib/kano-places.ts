@@ -34,6 +34,7 @@ export const KANO_PLACES: {
   { name: "Kofar Wambai", aliases: ["kofar wambai"], area: "Municipal", lat: 12.002, lng: 8.52 },
   { name: "Kofar Mata", aliases: ["kofar mata"], area: "Municipal", lat: 11.999, lng: 8.519 },
   { name: "Kofar Nassarawa", aliases: ["kofar nassarawa"], area: "Municipal", lat: 11.993, lng: 8.53 },
+  { name: "Kofar Waika", aliases: ["kofar waika", "koforwika", "kofor waika", "waika"], area: "Dala", lat: 12.01121, lng: 8.49634 },
   { name: "Gwagwarwa", aliases: ["gwagwarwa"], area: "Nassarawa", lat: 12.022, lng: 8.56 },
   { name: "Dakata", aliases: ["dakata"], area: "Nassarawa", lat: 12.02, lng: 8.57 },
   { name: "Kawaji", aliases: ["kawaji"], area: "Nassarawa", lat: 12.005, lng: 8.562 },
