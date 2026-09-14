@@ -188,9 +188,9 @@ export function HubMap({
     const group = layersRef.current;
     if (!map || !L || !group || !mapReady) return;
 
-    const ink = cssToken("--color-fg", "#2a0800");
-    const muted = cssToken("--color-muted", "#626262");
-    const paused = cssToken("--color-paused", "#b4b4b4");
+    const ink = cssToken("--color-fg", "#09090b");
+    const muted = cssToken("--color-muted", "#52525b");
+    const paused = cssToken("--color-paused", "#a1a1aa");
 
     group.clearLayers();
     const bounds = L.latLngBounds([]);
