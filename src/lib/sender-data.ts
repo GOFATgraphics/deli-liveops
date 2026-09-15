@@ -66,13 +66,26 @@ export const listMyJobs = createServerFn({ method: "GET" })
        order by j.created_at desc`,
       [context.userId],
     );
-    return rows.map((row) => ({
-      ...mapJob(row),
-      fleetName: row.fleet_name ? String(row.fleet_name) : null,
-      quoteId: row.quote_id ? String(row.quote_id) : null,
-      quoteTotalNgn: row.quote_total_ngn != null ? Number(row.quote_total_ngn) : null,
-      quoteEtaMinutes: row.quote_eta_minutes != null ? Number(row.quote_eta_minutes) : null,
-    })) satisfies SenderJob[];
+    return rows.map((row) => {
+      const job = mapJob(row);
+      const paid = [
+        "paid",
+        "assigned",
+        "picked_up",
+        "in_transit",
+        "delivery_confirmation_pending",
+        "delivered",
+        "settled",
+      ].includes(job.status);
+      return {
+        ...job,
+        deliveryCode: paid ? job.deliveryCode : null,
+        fleetName: row.fleet_name ? String(row.fleet_name) : null,
+        quoteId: row.quote_id ? String(row.quote_id) : null,
+        quoteTotalNgn: row.quote_total_ngn != null ? Number(row.quote_total_ngn) : null,
+        quoteEtaMinutes: row.quote_eta_minutes != null ? Number(row.quote_eta_minutes) : null,
+      };
+    }) satisfies SenderJob[];
   });
 
 const senderJobInput = z.object({

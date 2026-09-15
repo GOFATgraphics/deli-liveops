@@ -132,17 +132,25 @@ const CODE_STATUSES = [
 ];
 
 function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => void }) {
+  const waitingToPay = job.status === "accepted" || job.status === "payment_pending";
+  const [payOpen, setPayOpen] = useState(waitingToPay);
   const [busy, setBusy] = useState(false);
   const paid = CODE_STATUSES.includes(job.status);
-  const showCode = Boolean(paid && job.deliveryCode);
-  const canDecide = job.status === "quoted" && job.quoteId && job.quoteTotalNgn != null;
-  const canPay = job.status === "accepted" || job.status === "payment_pending";
+
+  useEffect(() => {
+    if (waitingToPay) setPayOpen(true);
+    if (paid) setPayOpen(false);
+  }, [waitingToPay, paid]);
+
+  const showCode = paid && Boolean(job.deliveryCode) && !payOpen;
+  const canDecide = job.status === "quoted" && Boolean(job.quoteId) && job.quoteTotalNgn != null && !payOpen;
 
   async function payNow() {
     const started = await startPaystackCheckout({ data: { jobId: job.id, origin: window.location.origin } });
     try {
       const paidTxn = await openPaystackCheckout(started.accessCode);
       await confirmPaystackPayment({ data: { reference: paidTxn.reference || started.reference } });
+      setPayOpen(false);
       toast.success("Paid. Send the 4-digit code to the person receiving.");
       onChanged();
     } catch (error) {
@@ -159,9 +167,9 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     setBusy(true);
     try {
       if (kind === "accept") {
+        setPayOpen(true);
         await acceptMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
-        toast.success("Accepted. Pay now — the code comes after Paystack confirms.");
-        onChanged();
+        toast.success("Accepted. Pay now.");
         await payNow();
       } else {
         await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
@@ -179,7 +187,9 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     <li className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
       <p className="flex items-center justify-between gap-2">
         <span className="font-mono text-sm">{job.publicId}</span>
-        <span className="text-xs tracking-wide text-subtle uppercase">{moneyStatus(job.status)}</span>
+        <span className="text-xs tracking-wide text-subtle uppercase">
+          {payOpen ? "pay now" : moneyStatus(job.status)}
+        </span>
       </p>
       <p className="mt-2 text-sm font-medium">
         {job.pickupLandmark} → {job.dropoffLandmark}
@@ -192,9 +202,11 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
       {canDecide ? (
         <div className="mt-4 rounded-lg bg-bg p-3">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Price from the desk</p>
-          <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">{money(job.quoteTotalNgn ?? 0)}</p>
-          {job.quoteEtaMinutes ? <p className="mt-1 text-sm text-muted">About {job.quoteEtaMinutes} minutes</p> : null}
-          <p className="mt-2 text-sm text-muted">Accept this price. Paystack opens next — the 4-digit code comes after payment.</p>
+          <p className="mt-2 text-sm">
+            {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "—"}
+            {job.quoteEtaMinutes ? ` · about ${job.quoteEtaMinutes} min` : ""}
+          </p>
+          <p className="mt-2 text-sm text-muted">Accept, then pay. You get the receiver code after payment.</p>
           <div className="mt-3 flex gap-2">
             <Button type="button" className="flex-1" disabled={busy} onClick={() => void decide("accept")}>
               Accept
@@ -206,15 +218,9 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
         </div>
       ) : null}
 
-      {canPay && !showCode ? (
+      {payOpen && !showCode ? (
         <div className="mt-4 rounded-lg bg-bg p-3">
-          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Pay now</p>
-          <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">
-            {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "—"}
-          </p>
-          <p className="mt-2 text-sm text-muted">
-            Pay here with card, bank, USSD, or OPay. The 4-digit code appears only after Paystack confirms.
-          </p>
+          <p className="text-sm text-muted">Pay to confirm this delivery. The 4-digit receiver code is issued after Paystack confirms — not before.</p>
           <Button
             type="button"
             className="mt-3 w-full"
@@ -226,7 +232,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
                 .finally(() => setBusy(false));
             }}
           >
-            Pay {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : ""}
+            Pay {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "now"}
           </Button>
         </div>
       ) : null}

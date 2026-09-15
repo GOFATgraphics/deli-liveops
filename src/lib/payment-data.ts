@@ -42,7 +42,8 @@ export const startPaystackCheckout = createServerFn({ method: "POST" })
     const email = users[0]?.email?.trim();
     if (!email) throw new Error("Your account needs an email to pay.");
     const { getRequest } = await import("@tanstack/react-start/server");
-    const origin = callbackOrigin(data.origin, getRequest()?.url);
+    const requestUrl = getRequest()?.url;
+    const origin = requestUrl ? new URL(requestUrl).origin : callbackOrigin(data.origin);
     const reference = payRef(String(job.public_id));
     const started = await initializePaystack({
       email,
