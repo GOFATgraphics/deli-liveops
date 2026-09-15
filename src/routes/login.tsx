@@ -5,6 +5,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandMark } from "@/components/brand-mark";
 import { saveMySender } from "@/lib/sender-data";
 
 export const Route = createFileRoute("/login")({
@@ -86,9 +87,14 @@ function Login() {
   return (
     <main className="grid min-h-dvh place-items-center bg-bg px-4 py-10">
       <div className="w-full max-w-sm">
-        <p className="font-display text-3xl tracking-tight">Deli</p>
-        <p className="mt-1 text-xs font-medium tracking-[0.18em] text-subtle uppercase">Sender</p>
-        <h1 className="font-display mt-6 text-2xl tracking-tight">
+        <div className="flex items-center gap-3">
+          <BrandMark className="size-10" />
+          <div>
+            <p className="font-display text-2xl leading-none tracking-tight">Deli</p>
+            <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-subtle uppercase">Sender</p>
+          </div>
+        </div>
+        <h1 className="font-display mt-8 text-2xl tracking-tight">
           {mode === "in" ? "Sign in" : "Create an account"}
         </h1>
         <p className="mt-2 text-sm text-muted">

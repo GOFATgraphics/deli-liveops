@@ -29,6 +29,11 @@ export type DeskOverview = {
   recent: DeskRecentJob[];
 };
 
+export type DeskNavCounts = {
+  openJobs: number;
+  quotePending: number;
+};
+
 export type DeskSender = {
   userId: string;
   name: string;
@@ -103,6 +108,22 @@ export const getDeskOverview = createServerFn({ method: "GET" })
         sender: String(row.sender_name ?? ""),
         createdAt: new Date(String(row.created_at)).toISOString(),
       })),
+    };
+  });
+
+export const getDeskNavCounts = createServerFn({ method: "GET" })
+  .middleware([operatorMiddleware])
+  .handler(async (): Promise<DeskNavCounts> => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const counts = await sql.query<{ status: string; n: number }>(
+      `select status, count(*)::int as n from jobs group by status`,
+    );
+    const byStatus = Object.fromEntries(counts.map((row) => [row.status, n(row.n)]));
+    const openJobs = counts.reduce((sum, row) => sum + (CLOSED.has(row.status) ? 0 : n(row.n)), 0);
+    return {
+      openJobs,
+      quotePending: n(byStatus.quote_pending) + n(byStatus.requested),
     };
   });
 

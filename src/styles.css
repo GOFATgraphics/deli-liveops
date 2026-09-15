@@ -59,6 +59,12 @@
     cursor: pointer;
   }
 
+  :root {
+    --motion-quick: 150ms;
+    --motion-fast: 250ms;
+    --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   img {
     outline: 1px solid rgb(0 0 0 / 0.08);
     outline-offset: -1px;
@@ -187,3 +193,12 @@
     transition: none !important;
   }
 }
+
+@keyframes desk-ping {
+  75%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+

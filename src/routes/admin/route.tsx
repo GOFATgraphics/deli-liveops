@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { DeskShell } from "@/components/ops/desk-shell";
 import { SignInGate } from "@/lib/auth/gates";
 import { ensureOperator } from "@/lib/operator-data";
@@ -45,8 +46,9 @@ function AdminGate({ children }: { children: ReactNode }) {
     return (
       <main className="grid min-h-dvh place-items-center bg-bg px-4">
         <div className="max-w-sm text-center">
-          <p className="font-display text-3xl tracking-tight">Deli</p>
-          <p className="mt-1 text-xs font-medium tracking-[0.18em] text-subtle uppercase">Admin</p>
+          <BrandMark className="mx-auto size-10" />
+          <p className="font-display mt-4 text-3xl tracking-tight">Deli</p>
+          <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-subtle uppercase">Admin</p>
           <p className="mt-6 text-sm text-muted">This desk is for Deli staff only.</p>
           <p className="mt-6">
             <Link to="/" className="text-sm underline-offset-4 hover:underline">

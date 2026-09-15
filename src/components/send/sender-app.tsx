@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PlaceSearch } from "@/components/ops/place-search";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,17 +58,18 @@ function SenderHome() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-5">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-2xl leading-none tracking-tight">Deli</span>
-            <span className="text-xs font-medium tracking-[0.18em] text-subtle uppercase">Send</span>
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-raised/90 px-4 py-3 backdrop-blur-md md:px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <BrandMark className="size-8" />
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-xl leading-none tracking-tight">Deli</span>
+              <span className="text-[11px] font-medium tracking-[0.16em] text-subtle uppercase">Send</span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted">Kano pickup</p>
           </div>
-          <p className="mt-1 truncate text-sm text-muted">{user?.displayName ?? "Your jobs"}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <UserButton />
-        </div>
+        <UserButton compact />
       </header>
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4 md:p-6">
