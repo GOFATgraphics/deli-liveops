@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { PlaceSearch } from "@/components/ops/place-search";
 import { BrandMark } from "@/components/brand-mark";
+import { PlaceSearch } from "@/components/ops/place-search";
+import { ReceiverCodeCard } from "@/components/send/receiver-code-card";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RedirectToSignIn, SignInGate, UserButton } from "@/lib/auth/gates";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { createSenderJob, getMySender, listMyJobs, saveMySender, rejectMyQuote, type SenderJob, type SenderProfile } from "@/lib/sender-data";
 import { acceptAndPay, startPaystackCheckout } from "@/lib/payment-data";
 import { goToPaystack } from "@/lib/paystack-redirect";
-import { cn } from "@/lib/utils";
+import { createSenderJob, getMySender, listMyJobs, rejectMyQuote, saveMySender, type SenderJob, type SenderProfile } from "@/lib/sender-data";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -94,7 +94,7 @@ function SenderHome() {
               <div>
                 <h1 className="font-display text-2xl tracking-tight">Your jobs</h1>
                 <p className="mt-1 text-sm text-muted">
-                  Request a pickup. Accept the price — that opens Paystack. The 4-digit code comes after you pay.
+                  Request a pickup. Accept the price — that opens Paystack. After you pay, you get a 4-digit card to share with the receiver.
                 </p>
               </div>
               <Button type="button" onClick={() => setComposing(true)}>
@@ -172,6 +172,22 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     }
   }
 
+  if (showCode && job.deliveryCode) {
+    return (
+      <li>
+        <ReceiverCodeCard
+          variant={job.status === "paid" ? "success" : "code"}
+          statusLabel={job.status === "paid" ? undefined : moneyStatus(job.status)}
+          code={job.deliveryCode}
+          publicId={job.publicId}
+          pickupLandmark={job.pickupLandmark}
+          dropoffLandmark={job.dropoffLandmark}
+          amountNgn={job.quoteTotalNgn}
+        />
+      </li>
+    );
+  }
+
   return (
     <li className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
       <p className="flex items-center justify-between gap-2">
@@ -207,7 +223,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
         </div>
       ) : null}
 
-      {payOpen && !showCode ? (
+      {payOpen ? (
         <div className="mt-4 rounded-lg bg-bg p-3">
           <p className="text-sm text-muted">Paystack checkout — card, bank, USSD, or OPay. No code until that payment lands.</p>
           <Button
@@ -224,16 +240,6 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
           >
             Pay {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "now"}
           </Button>
-        </div>
-      ) : null}
-
-      {showCode ? (
-        <div className="mt-4 rounded-lg bg-bg p-3">
-          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Receiver code</p>
-          <p className={cn("font-display mt-1 text-3xl tracking-[0.28em] tabular-nums")}>{job.deliveryCode}</p>
-          <p className="mt-2 text-sm text-muted">
-            Send this to the person receiving. They show it to the rider. We match it before we pay the fleet.
-          </p>
         </div>
       ) : null}
     </li>

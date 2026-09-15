@@ -121,7 +121,12 @@ export async function applyPaidJob(opts: {
   if (!job) throw new Error("Job not found");
   const status = String(job.status);
   if (["paid", "assigned", "picked_up", "in_transit", "delivery_confirmation_pending", "delivered", "settlement_pending", "settled"].includes(status)) {
-    return { ok: true as const, already: true, deliveryCode: job.delivery_code ? String(job.delivery_code) : null };
+    return paidResult({
+      already: true,
+      deliveryCode: job.delivery_code ? String(job.delivery_code) : null,
+      job,
+      amountNgn: opts.amountNgn,
+    });
   }
   if (!["accepted", "payment_pending"].includes(status)) {
     throw new Error("This job is not waiting for payment.");
@@ -162,5 +167,23 @@ export async function applyPaidJob(opts: {
       opts.actor,
     ],
   );
-  return { ok: true as const, already: false, deliveryCode: code };
+  return paidResult({ already: false, deliveryCode: code, job, amountNgn: opts.amountNgn });
+}
+
+function paidResult(input: {
+  already: boolean;
+  deliveryCode: string | null;
+  job: Record<string, unknown>;
+  amountNgn: number;
+}) {
+  return {
+    ok: true as const,
+    already: input.already,
+    deliveryCode: input.deliveryCode,
+    jobId: String(input.job.id),
+    publicId: String(input.job.public_id ?? ""),
+    pickupLandmark: String(input.job.pickup_landmark ?? ""),
+    dropoffLandmark: String(input.job.dropoff_landmark ?? ""),
+    amountNgn: input.amountNgn,
+  };
 }
