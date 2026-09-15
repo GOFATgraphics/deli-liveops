@@ -172,7 +172,7 @@ export const acceptMyQuote = createServerFn({ method: "POST" })
       quote.id,
     ]);
     await sql.query(
-      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, status = 'payment_pending', updated_at = now(), actor = 'sender'
+      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, delivery_code = null, status = 'payment_pending', updated_at = now(), actor = 'sender'
        where id = $1`,
       [data.jobId, quote.id, quote.fleet_id],
     );

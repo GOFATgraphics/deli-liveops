@@ -68,7 +68,7 @@ export const startPaystackCheckout = createServerFn({ method: "POST" })
         [crypto.randomUUID(), job.id, job.status, JSON.stringify({ reference: started.reference })],
       );
     }
-    return { authorizationUrl: started.authorizationUrl, reference: started.reference };
+    return { authorizationUrl: started.authorizationUrl, accessCode: started.accessCode, reference: started.reference };
   });
 
 export const confirmPaystackPayment = createServerFn({ method: "POST" })

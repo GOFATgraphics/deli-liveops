@@ -472,7 +472,10 @@ function JobDetail({
         </div>
       ) : null}
 
-      {job.deliveryCode ? (
+      {job.deliveryCode &&
+      ["paid", "assigned", "picked_up", "in_transit", "delivery_confirmation_pending", "delivered", "settlement_pending", "settled"].includes(
+        job.status,
+      ) ? (
         <div className="rounded-xl bg-bg p-4">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Receiver code</p>
           <p className="font-display mt-2 text-3xl tracking-[0.28em] tabular-nums">{job.deliveryCode}</p>
