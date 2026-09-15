@@ -437,14 +437,18 @@ function JobDetail({
         ) : null}
       </div>
 
-      {job.status === "accepted" ? (
+      {job.status === "accepted" || job.status === "payment_pending" ? (
         <div className="rounded-xl bg-bg p-4">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Payment</p>
-          <p className="mt-2 text-sm text-muted">
-            Sender pays {selectedQuote ? money(selectedQuote.totalNgn) : "the accepted total"}. Hold it on the desk until delivery.
+          <p className="mt-2 text-sm font-medium">
+            Waiting for Paystack — {selectedQuote ? money(selectedQuote.totalNgn) : "the accepted total"}.
           </p>
-          <Field label="Transfer reference">
-            <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Opay / bank ref" />
+          <p className="mt-1 text-sm text-muted">
+            The sender pays with card, bank, USSD, or OPay. When Paystack confirms, they get the 4-digit code and this
+            job moves to paid.
+          </p>
+          <Field label="Off-app transfer reference">
+            <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Only if they paid outside Paystack" />
           </Field>
           <Button
             type="button"
@@ -452,7 +456,7 @@ function JobDetail({
             disabled={busy || payRef.trim().length < 2}
             onClick={() => void run(() => markPaid({ data: { jobId: job.id, reference: payRef } }), "Marked paid")}
           >
-            Mark paid
+            Record off-app payment
           </Button>
         </div>
       ) : null}

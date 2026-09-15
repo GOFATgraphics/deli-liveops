@@ -18,3 +18,11 @@ Neon on Vercel Storage injects `DATABASE_URL` (and usually `DATABASE_URL_UNPOOLE
 ## Map tiles
 
 Set **`CARTO_API_KEY`** on the host (server only). Tiles are fetched at `/api/tiles`.
+
+## Paystack
+
+Set **`PAYSTACK_SECRET_KEY`** (test `sk_test_…` first, then live). Webhook URL in the Paystack dashboard:
+
+`https://deli-liveops.vercel.app/api/paystack/webhook`
+
+Enable card, bank, USSD, and OPay on the Paystack checkout. The sender pays after they accept a price; the 4-digit receiver code appears only when Paystack confirms.

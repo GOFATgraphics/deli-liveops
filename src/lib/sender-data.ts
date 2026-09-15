@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { fourDigit, mapJob, type JobRow } from "@/lib/ops-data";
+import { mapJob, type JobRow } from "@/lib/ops-data";
 
 export type SenderProfile = {
   userId: string;
@@ -153,8 +153,8 @@ export const acceptMyQuote = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    const jobs = await sql.query<{ id: string; status: string; delivery_code: string | null }>(
-      `select id, status, delivery_code from jobs where id = $1 and sender_user_id = $2`,
+    const jobs = await sql.query<{ id: string; status: string }>(
+      `select id, status from jobs where id = $1 and sender_user_id = $2`,
       [data.jobId, context.userId],
     );
     const job = jobs[0];
@@ -166,23 +166,22 @@ export const acceptMyQuote = createServerFn({ method: "POST" })
     );
     const quote = quotes[0];
     if (!quote || quote.status !== "offered") throw new Error("That price is no longer offered.");
-    const code = job.delivery_code || fourDigit();
     await sql.query(`update quotes set status = 'accepted' where id = $1`, [quote.id]);
     await sql.query(`update quotes set status = 'withdrawn' where job_id = $1 and id <> $2 and status = 'offered'`, [
       data.jobId,
       quote.id,
     ]);
     await sql.query(
-      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, delivery_code = $4, status = 'accepted', updated_at = now(), actor = 'sender'
+      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, status = 'payment_pending', updated_at = now(), actor = 'sender'
        where id = $1`,
-      [data.jobId, quote.id, quote.fleet_id, code],
+      [data.jobId, quote.id, quote.fleet_id],
     );
     await sql.query(
       `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
-       values ($1,$2,'quote_accepted',$3,'accepted',$4::jsonb,'sender')`,
+       values ($1,$2,'quote_accepted',$3,'payment_pending',$4::jsonb,'sender')`,
       [crypto.randomUUID(), data.jobId, job.status, JSON.stringify({ quoteId: quote.id, fleetId: quote.fleet_id })],
     );
-    return { ok: true as const, deliveryCode: code };
+    return { ok: true as const };
   });
 
 export const rejectMyQuote = createServerFn({ method: "POST" })

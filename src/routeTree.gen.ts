@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OpsRouteImport } from './routes/ops'
+import { Route as PayRouteImport } from './routes/pay'
 import { Route as SendRouteImport } from './routes/send'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFleetsRouteImport } from './routes/admin/fleets'
@@ -21,6 +22,7 @@ import { Route as AdminMapRouteImport } from './routes/admin/map'
 import { Route as AdminRecordsRouteImport } from './routes/admin/records'
 import { Route as ApiTilesRouteImport } from './routes/api/tiles'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiPaystackWebhookRouteImport } from './routes/api/paystack/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +42,11 @@ const LoginRoute = LoginRouteImport.update({
 const OpsRoute = OpsRouteImport.update({
   id: '/ops',
   path: '/ops',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayRoute = PayRouteImport.update({
+  id: '/pay',
+  path: '/pay',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SendRoute = SendRouteImport.update({
@@ -82,12 +89,18 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaystackWebhookRoute = ApiPaystackWebhookRouteImport.update({
+  id: '/api/paystack/webhook',
+  path: '/api/paystack/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
+  '/pay': typeof PayRoute
   '/send': typeof SendRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -96,11 +109,13 @@ export interface FileRoutesByFullPath {
   '/api/tiles': typeof ApiTilesRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
+  '/pay': typeof PayRoute
   '/send': typeof SendRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -109,6 +124,7 @@ export interface FileRoutesByTo {
   '/api/tiles': typeof ApiTilesRoute
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +132,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
+  '/pay': typeof PayRoute
   '/send': typeof SendRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -124,6 +141,7 @@ export interface FileRoutesById {
   '/api/tiles': typeof ApiTilesRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -132,6 +150,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/ops'
+    | '/pay'
     | '/send'
     | '/admin/fleets'
     | '/admin/jobs'
@@ -140,11 +159,13 @@ export interface FileRouteTypes {
     | '/api/tiles'
     | '/admin/'
     | '/api/auth/$'
+    | '/api/paystack/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/ops'
+    | '/pay'
     | '/send'
     | '/admin/fleets'
     | '/admin/jobs'
@@ -153,12 +174,14 @@ export interface FileRouteTypes {
     | '/api/tiles'
     | '/admin'
     | '/api/auth/$'
+    | '/api/paystack/webhook'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/login'
     | '/ops'
+    | '/pay'
     | '/send'
     | '/admin/fleets'
     | '/admin/jobs'
@@ -167,6 +190,7 @@ export interface FileRouteTypes {
     | '/api/tiles'
     | '/admin/'
     | '/api/auth/$'
+    | '/api/paystack/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -174,9 +198,11 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   OpsRoute: typeof OpsRoute
+  PayRoute: typeof PayRoute
   SendRoute: typeof SendRoute
   ApiTilesRoute: typeof ApiTilesRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiPaystackWebhookRoute: typeof ApiPaystackWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -207,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/ops'
       fullPath: '/ops'
       preLoaderRoute: typeof OpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay': {
+      id: '/pay'
+      path: '/pay'
+      fullPath: '/pay'
+      preLoaderRoute: typeof PayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/send': {
@@ -265,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/paystack/webhook': {
+      id: '/api/paystack/webhook'
+      path: '/api/paystack/webhook'
+      fullPath: '/api/paystack/webhook'
+      preLoaderRoute: typeof ApiPaystackWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -293,9 +333,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   OpsRoute: OpsRoute,
+  PayRoute: PayRoute,
   SendRoute: SendRoute,
   ApiTilesRoute: ApiTilesRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiPaystackWebhookRoute: ApiPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

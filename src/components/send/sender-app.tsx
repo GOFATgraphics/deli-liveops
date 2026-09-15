@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RedirectToSignIn, SignInGate, UserButton } from "@/lib/auth/gates";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { createSenderJob, getMySender, listMyJobs, saveMySender, acceptMyQuote, rejectMyQuote, type SenderJob, type SenderProfile } from "@/lib/sender-data";
+import { startPaystackCheckout } from "@/lib/payment-data";
 import { cn } from "@/lib/utils";
 
 function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
@@ -90,7 +91,7 @@ function SenderHome() {
               <div>
                 <h1 className="font-display text-2xl tracking-tight">Your jobs</h1>
                 <p className="mt-1 text-sm text-muted">
-                  Request a pickup. We send you a price. Accept it and you get a 4-digit code for the person receiving.
+                  Request a pickup. Accept the price, pay on Paystack, then you get a 4-digit code for the receiver.
                 </p>
               </div>
               <Button type="button" onClick={() => setComposing(true)}>
@@ -120,8 +121,6 @@ function money(n: number) {
 }
 
 const CODE_STATUSES = [
-  "accepted",
-  "payment_pending",
   "paid",
   "assigned",
   "picked_up",
@@ -142,7 +141,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     try {
       if (kind === "accept") {
         await acceptMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
-        toast.success("Accepted. Send the 4-digit code to the person receiving.");
+        toast.success("Accepted. Pay to get the receiver code.");
       } else {
         await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
         toast.success("Price rejected. We’ll get another one.");
@@ -174,7 +173,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Price from the desk</p>
           <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">{money(job.quoteTotalNgn ?? 0)}</p>
           {job.quoteEtaMinutes ? <p className="mt-1 text-sm text-muted">About {job.quoteEtaMinutes} minutes</p> : null}
-          <p className="mt-2 text-sm text-muted">Accept this price. You get a 4-digit code for the receiver.</p>
+          <p className="mt-2 text-sm text-muted">Accept this price, then pay with card, bank, USSD, or OPay.</p>
           <div className="mt-3 flex gap-2">
             <Button type="button" className="flex-1" disabled={busy} onClick={() => void decide("accept")}>
               Accept
@@ -187,9 +186,34 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
       ) : null}
 
       {job.status === "accepted" || job.status === "payment_pending" ? (
-        <p className="mt-3 text-sm text-muted">
-          Transfer {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "the amount"}. We hold it until delivery.
-        </p>
+        <div className="mt-4 rounded-lg bg-bg p-3">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Pay now</p>
+          <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">
+            {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "—"}
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            Paystack opens for card, bank, USSD, or OPay. After it succeeds you get the 4-digit code. We hold the money
+            until delivery.
+          </p>
+          <Button
+            type="button"
+            className="mt-3 w-full"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void startPaystackCheckout({ data: { jobId: job.id, origin: window.location.origin } })
+                .then((started) => {
+                  window.location.assign(started.authorizationUrl);
+                })
+                .catch((error) => {
+                  toast.error(error instanceof Error ? error.message : "Could not start payment");
+                  setBusy(false);
+                });
+            }}
+          >
+            Pay {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : ""}
+          </Button>
+        </div>
       ) : null}
 
       {showCode ? (
