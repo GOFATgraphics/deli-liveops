@@ -1,28 +1,30 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { OpsApp } from "@/components/ops/ops-app";
+import { useEffect, useState, type ReactNode } from "react";
+import { DeskShell } from "@/components/ops/desk-shell";
 import { SignInGate } from "@/lib/auth/gates";
 import { ensureOperator } from "@/lib/operator-data";
 
 export const Route = createFileRoute("/admin")({
-  component: AdminPage,
+  component: AdminLayout,
   head: () => ({
     meta: [
       { title: "Deli Admin" },
-      { name: "description", content: "Staff desk — fleets, quotes, and jobs." },
+      { name: "description", content: "Staff dashboard — overview, jobs, fleets, map, records." },
     ],
   }),
 });
 
-function AdminPage() {
+function AdminLayout() {
   return (
     <SignInGate fallback={<Navigate to="/login" search={{ next: "/admin" }} />}>
-      <AdminGate />
+      <AdminGate>
+        <DeskShell />
+      </AdminGate>
     </SignInGate>
   );
 }
 
-function AdminGate() {
+function AdminGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<"load" | "ok" | "no">("load");
 
   useEffect(() => {
@@ -56,5 +58,5 @@ function AdminGate() {
     );
   }
 
-  return <OpsApp />;
+  return <>{children}</>;
 }

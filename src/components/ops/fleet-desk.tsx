@@ -1,9 +1,7 @@
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CartoConnect } from "@/components/ops/carto-connect";
 import { HubMap } from "@/components/ops/hub-map";
-import { JobBoard } from "@/components/ops/job-board";
 import { PartnerForm } from "@/components/ops/partner-form";
 import { PartnerList } from "@/components/ops/partner-list";
 import { PartnerPreview } from "@/components/ops/partner-preview";
@@ -34,21 +32,14 @@ function useIsMd() {
   return md;
 }
 
-export function OpsApp() {
+export function FleetDesk() {
   const partners = usePartners((s) => s.partners);
-  const hydrate = usePartners((s) => s.hydrate);
   const upsert = usePartners((s) => s.upsert);
   const setStatus = usePartners((s) => s.setStatus);
   const remove = usePartners((s) => s.remove);
-
   const isMd = useIsMd();
-  const [desk, setDesk] = useState<"partners" | "jobs">("partners");
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<Panel>({ kind: "none" });
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -70,9 +61,6 @@ export function OpsApp() {
       return a.name.localeCompare(b.name);
     });
   }, [partners, query]);
-
-  const liveCount = partners.filter((p) => p.status === "active").length;
-  const pausedCount = partners.length - liveCount;
 
   const selectedId =
     panel.kind === "preview" ? panel.id : panel.kind === "form" && panel.id !== "new" ? panel.id : null;
@@ -130,79 +118,22 @@ export function OpsApp() {
     ) : null;
 
   return (
-    <div className="flex h-dvh flex-col bg-bg">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-5">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-2xl leading-none tracking-tight">Deli</span>
-            <span className="text-xs font-medium tracking-[0.18em] text-subtle uppercase">
-              Admin
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div>
+          <h1 className="font-display text-xl tracking-tight">Fleets</h1>
+          <p className="text-sm text-muted">
             <span className="tabular-nums">{partners.length}</span> partners
-            <span className="text-subtle"> · </span>
-            <span className="tabular-nums">{liveCount}</span> live
-            {pausedCount > 0 ? (
-              <>
-                <span className="text-subtle"> · </span>
-                <span className="tabular-nums">{pausedCount}</span> paused
-              </>
-            ) : null}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden overflow-hidden rounded-md bg-raised shadow-[var(--shadow-hairline)] sm:flex">
-            <button
-              type="button"
-              onClick={() => setDesk("partners")}
-              className={cn("h-11 px-3 text-sm font-medium", desk === "partners" ? "bg-fg text-accent-fg" : "text-muted hover:text-fg")}
-            >
-              Fleets
-            </button>
-            <button
-              type="button"
-              onClick={() => setDesk("jobs")}
-              className={cn("h-11 px-3 text-sm font-medium", desk === "jobs" ? "bg-fg text-accent-fg" : "text-muted hover:text-fg")}
-            >
-              Jobs
-            </button>
-          </div>
-          <CartoConnect />
-          {desk === "partners" ? (
-            <Button
-              type="button"
-              onClick={() => setPanel({ kind: "form", id: "new", draft: { ...EMPTY_DRAFT } })}
-              className="shrink-0"
-            >
-              <Plus />
-              <span className="hidden sm:inline">Register partner</span>
-              <span className="sm:hidden">Register</span>
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
-      <div className="flex gap-1 border-b border-border px-3 py-2 sm:hidden">
-        <button
+        <Button
           type="button"
-          onClick={() => setDesk("partners")}
-          className={cn("h-11 flex-1 rounded-md text-sm font-medium", desk === "partners" ? "bg-fg text-accent-fg" : "bg-raised")}
+          onClick={() => setPanel({ kind: "form", id: "new", draft: { ...EMPTY_DRAFT } })}
         >
-          Fleets
-        </button>
-        <button
-          type="button"
-          onClick={() => setDesk("jobs")}
-          className={cn("h-11 flex-1 rounded-md text-sm font-medium", desk === "jobs" ? "bg-fg text-accent-fg" : "bg-raised")}
-        >
-          Jobs
-        </button>
+          <Plus />
+          Register
+        </Button>
       </div>
-
-      {desk === "jobs" ? (
-        <JobBoard />
-      ) : (
       <div
         className={cn(
           "grid min-h-0 flex-1 md:grid-rows-none",
@@ -225,7 +156,6 @@ export function OpsApp() {
             />
           </aside>
         ) : null}
-
         <section className="relative order-1 min-h-0 md:order-2">
           <HubMap
             className="h-full min-h-0 md:absolute md:inset-0"
@@ -238,16 +168,13 @@ export function OpsApp() {
               patchDraft({ lat, lng, ...(address ? { address } : {}) });
             }}
           />
-
         </section>
-
         {inspector ? (
           <aside className="order-3 flex min-h-0 flex-col overflow-hidden border-t border-border bg-raised md:border-t-0 md:border-l">
             <div className="min-h-0 flex-1 overflow-y-auto">{inspector}</div>
           </aside>
         ) : null}
       </div>
-      )}
     </div>
   );
 }

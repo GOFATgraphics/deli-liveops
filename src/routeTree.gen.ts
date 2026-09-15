@@ -10,10 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OpsRouteImport } from './routes/ops'
 import { Route as SendRouteImport } from './routes/send'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminFleetsRouteImport } from './routes/admin/fleets'
+import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
+import { Route as AdminMapRouteImport } from './routes/admin/map'
+import { Route as AdminRecordsRouteImport } from './routes/admin/records'
 import { Route as ApiTilesRouteImport } from './routes/api/tiles'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -22,7 +27,7 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
+const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
@@ -42,6 +47,31 @@ const SendRoute = SendRouteImport.update({
   path: '/send',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFleetsRoute = AdminFleetsRouteImport.update({
+  id: '/fleets',
+  path: '/fleets',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminJobsRoute = AdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminMapRoute = AdminMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRecordsRoute = AdminRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiTilesRoute = ApiTilesRouteImport.update({
   id: '/api/tiles',
   path: '/api/tiles',
@@ -55,39 +85,74 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/send': typeof SendRoute
+  '/admin/fleets': typeof AdminFleetsRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/map': typeof AdminMapRoute
+  '/admin/records': typeof AdminRecordsRoute
   '/api/tiles': typeof ApiTilesRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/send': typeof SendRoute
+  '/admin/fleets': typeof AdminFleetsRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/map': typeof AdminMapRoute
+  '/admin/records': typeof AdminRecordsRoute
   '/api/tiles': typeof ApiTilesRoute
+  '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/send': typeof SendRoute
+  '/admin/fleets': typeof AdminFleetsRoute
+  '/admin/jobs': typeof AdminJobsRoute
+  '/admin/map': typeof AdminMapRoute
+  '/admin/records': typeof AdminRecordsRoute
   '/api/tiles': typeof ApiTilesRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/admin' | '/login' | '/ops' | '/send' | '/api/tiles' | '/api/auth/$'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/ops'
+    | '/send'
+    | '/admin/fleets'
+    | '/admin/jobs'
+    | '/admin/map'
+    | '/admin/records'
+    | '/api/tiles'
+    | '/admin/'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/admin' | '/login' | '/ops' | '/send' | '/api/tiles' | '/api/auth/$'
+    | '/'
+    | '/login'
+    | '/ops'
+    | '/send'
+    | '/admin/fleets'
+    | '/admin/jobs'
+    | '/admin/map'
+    | '/admin/records'
+    | '/api/tiles'
+    | '/admin'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -95,13 +160,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/ops'
     | '/send'
+    | '/admin/fleets'
+    | '/admin/jobs'
+    | '/admin/map'
+    | '/admin/records'
     | '/api/tiles'
+    | '/admin/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   OpsRoute: typeof OpsRoute
   SendRoute: typeof SendRoute
@@ -122,7 +192,7 @@ declare module '@tanstack/react-router' {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -146,6 +216,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SendRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/fleets': {
+      id: '/admin/fleets'
+      path: '/fleets'
+      fullPath: '/admin/fleets'
+      preLoaderRoute: typeof AdminFleetsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/jobs': {
+      id: '/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/map': {
+      id: '/admin/map'
+      path: '/map'
+      fullPath: '/admin/map'
+      preLoaderRoute: typeof AdminMapRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/records': {
+      id: '/admin/records'
+      path: '/records'
+      fullPath: '/admin/records'
+      preLoaderRoute: typeof AdminRecordsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/tiles': {
       id: '/api/tiles'
       path: '/api/tiles'
@@ -163,9 +268,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminFleetsRoute: typeof AdminFleetsRoute
+  AdminJobsRoute: typeof AdminJobsRoute
+  AdminMapRoute: typeof AdminMapRoute
+  AdminRecordsRoute: typeof AdminRecordsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminFleetsRoute: AdminFleetsRoute,
+  AdminJobsRoute: AdminJobsRoute,
+  AdminMapRoute: AdminMapRoute,
+  AdminRecordsRoute: AdminRecordsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   OpsRoute: OpsRoute,
   SendRoute: SendRoute,
