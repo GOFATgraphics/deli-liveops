@@ -65,7 +65,11 @@ export function Overview() {
         <section>
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-xl tracking-tight">Recent jobs</h2>
-            <Link to="/admin/jobs" className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline">
+            <Link
+              to="/admin/jobs"
+              search={{ job: undefined }}
+              className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+            >
               Open jobs
             </Link>
           </div>
@@ -76,20 +80,23 @@ export function Overview() {
           ) : (
             <ul className="overflow-hidden rounded-xl bg-raised shadow-[var(--shadow-hairline)]">
               {data.recent.map((job, index) => (
-                <li
-                  key={job.id}
-                  className={cn("flex flex-col gap-1 px-4 py-3 md:flex-row md:items-center md:justify-between", index > 0 && "border-t border-border")}
-                >
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm">{job.publicId}</p>
-                    <p className="truncate text-sm text-muted">
-                      {job.pickup} → {job.dropoff}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3 text-sm">
-                    <span className="text-muted">{job.sender}</span>
-                    <span className="capitalize text-fg">{statusLabel(job.status)}</span>
-                  </div>
+                <li key={job.id} className={cn(index > 0 && "border-t border-border")}>
+                  <Link
+                    to="/admin/jobs"
+                    search={{ job: job.id }}
+                    className="flex flex-col gap-1 px-4 py-3 md:flex-row md:items-center md:justify-between hover:bg-fg/4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm">{job.publicId}</p>
+                      <p className="truncate text-sm text-muted">
+                        {job.pickup} → {job.dropoff}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-sm">
+                      <span className="text-muted">{job.sender}</span>
+                      <span className="capitalize text-fg">{statusLabel(job.status)}</span>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>

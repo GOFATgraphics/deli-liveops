@@ -40,6 +40,7 @@ export function DeskShell() {
               <Link
                 key={item.to}
                 to={item.to}
+                search={item.to === "/admin/jobs" ? { job: undefined } : undefined}
                 className={cn(
                   "flex h-11 items-center gap-2.5 rounded-md px-3 text-sm font-medium",
                   active ? "bg-fg text-accent-fg" : "text-muted hover:bg-fg/5 hover:text-fg",
@@ -76,6 +77,7 @@ export function DeskShell() {
             <Link
               key={item.to}
               to={item.to}
+              search={item.to === "/admin/jobs" ? { job: undefined } : undefined}
               className={cn(
                 "flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium tracking-wide uppercase",
                 active ? "text-fg" : "text-subtle",

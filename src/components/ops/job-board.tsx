@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PlaceSearch } from "@/components/ops/place-search";
 import { Button } from "@/components/ui/button";
@@ -38,13 +39,20 @@ function money(n: number) {
   return `₦${n.toLocaleString("en-NG")}`;
 }
 
-export function JobBoard() {
+export function JobBoard({ openJobId }: { openJobId?: string }) {
   const fleets = usePartners((s) => s.partners);
+  const navigate = useNavigate({ from: "/admin/jobs" });
   const [jobs, setJobs] = useState<JobRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(openJobId ?? null);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [events, setEvents] = useState<JobEventRow[]>([]);
   const [composing, setComposing] = useState(false);
+
+  function openJob(id: string) {
+    setComposing(false);
+    setSelectedId(id);
+    void navigate({ search: { job: id }, replace: true });
+  }
 
   async function refresh() {
     const next = await listJobs();
@@ -55,6 +63,13 @@ export function JobBoard() {
   useEffect(() => {
     void refresh().catch((error) => toast.error(error instanceof Error ? error.message : "Jobs failed"));
   }, []);
+
+  useEffect(() => {
+    if (openJobId) {
+      setComposing(false);
+      setSelectedId(openJobId);
+    }
+  }, [openJobId]);
 
   const selected = jobs.find((job) => job.id === selectedId) ?? null;
 
@@ -91,10 +106,7 @@ export function JobBoard() {
                 <li key={job.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setComposing(false);
-                      setSelectedId(job.id);
-                    }}
+                    onClick={() => openJob(job.id)}
                     className={cn(
                       "flex w-full flex-col gap-1 rounded-lg px-3 py-3 text-left",
                       selectedId === job.id ? "bg-raised shadow-[var(--shadow-hairline)]" : "hover:bg-fg/4",
@@ -121,8 +133,7 @@ export function JobBoard() {
             onCancel={() => setComposing(false)}
             onCreated={async (job) => {
               await refresh();
-              setComposing(false);
-              setSelectedId(job.id);
+              openJob(job.id);
             }}
           />
         ) : selected ? (
