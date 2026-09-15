@@ -543,10 +543,12 @@ export const markPaid = createServerFn({ method: "POST" })
     ]);
     const amount = Number(quote[0]?.total_ngn ?? 0);
     const code = job.deliveryCode ?? fourDigit();
+    const staffRef = data.reference.trim();
+    const providerRef = `desk-${job.id}-${staffRef}`.slice(0, 100);
     await sql.query(
       `insert into payments (id, job_id, quote_id, amount_ngn, currency, provider, provider_ref, status, paid_at)
        values ($1,$2,$3,$4,'NGN','desk_transfer',$5,'paid', now())`,
-      [crypto.randomUUID(), job.id, job.selectedQuoteId, amount, data.reference.trim()],
+      [crypto.randomUUID(), job.id, job.selectedQuoteId, amount, providerRef],
     );
     await sql.query(`update jobs set delivery_code = $2, status = 'paid', updated_at = now(), actor = 'ops' where id = $1`, [
       job.id,
