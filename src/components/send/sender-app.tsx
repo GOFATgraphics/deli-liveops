@@ -6,7 +6,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RedirectToSignIn, SignInGate, UserButton } from "@/lib/auth/gates";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { createSenderJob, getMySender, listMyJobs, saveMySender, type SenderJob, type SenderProfile } from "@/lib/sender-data";
+import { createSenderJob, getMySender, listMyJobs, saveMySender, acceptMyQuote, rejectMyQuote, type SenderJob, type SenderProfile } from "@/lib/sender-data";
 import { cn } from "@/lib/utils";
 
 function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
@@ -90,7 +90,8 @@ function SenderHome() {
               <div>
                 <h1 className="font-display text-2xl tracking-tight">Your jobs</h1>
                 <p className="mt-1 text-sm text-muted">
-                  Request a pickup. The desk will quote, then hold payment until delivery.
+                  Request a pickup. We get a price from a fleet. You accept or reject. After you pay, you get a 4-digit
+                  code for the person receiving.
                 </p>
               </div>
               <Button type="button" onClick={() => setComposing(true)}>
@@ -104,25 +105,7 @@ function SenderHome() {
             ) : (
               <ul className="flex flex-col gap-2">
                 {jobs.map((job) => (
-                  <li key={job.id} className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
-                    <p className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-sm">{job.publicId}</span>
-                      <span className="text-[11px] tracking-wide text-subtle uppercase">{moneyStatus(job.status)}</span>
-                    </p>
-                    <p className="mt-2 text-sm font-medium">
-                      {job.pickupLandmark} → {job.dropoffLandmark}
-                    </p>
-                    <p className="mt-1 text-sm text-muted">
-                      {job.distanceKm} km · {job.goods}
-                      {job.fleetName ? ` · ${job.fleetName}` : ""}
-                    </p>
-                    {job.deliveryCode &&
-                    ["paid", "assigned", "picked_up", "in_transit", "delivery_confirmation_pending", "delivered", "settled"].includes(
-                      job.status,
-                    ) ? (
-                      <p className={cn("font-display mt-3 text-2xl tracking-[0.28em] tabular-nums")}>{job.deliveryCode}</p>
-                    ) : null}
-                  </li>
+                  <SenderJobCard key={job.id} job={job} onChanged={() => void refresh()} />
                 ))}
               </ul>
             )}
@@ -130,6 +113,95 @@ function SenderHome() {
         )}
       </main>
     </div>
+  );
+}
+
+function money(n: number) {
+  return `₦${n.toLocaleString("en-NG")}`;
+}
+
+const CODE_STATUSES = [
+  "paid",
+  "assigned",
+  "picked_up",
+  "in_transit",
+  "delivery_confirmation_pending",
+  "delivered",
+  "settled",
+];
+
+function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const showCode = Boolean(job.deliveryCode && CODE_STATUSES.includes(job.status));
+  const canDecide = job.status === "quoted" && job.quoteId && job.quoteTotalNgn != null;
+
+  async function decide(kind: "accept" | "reject") {
+    if (!job.quoteId) return;
+    setBusy(true);
+    try {
+      if (kind === "accept") {
+        await acceptMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
+        toast.success("Price accepted. Transfer the amount — we hold it until delivery.");
+      } else {
+        await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
+        toast.success("Price rejected. We’ll get another one.");
+      }
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
+      <p className="flex items-center justify-between gap-2">
+        <span className="font-mono text-sm">{job.publicId}</span>
+        <span className="text-xs tracking-wide text-subtle uppercase">{moneyStatus(job.status)}</span>
+      </p>
+      <p className="mt-2 text-sm font-medium">
+        {job.pickupLandmark} → {job.dropoffLandmark}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        {job.distanceKm} km · {job.goods}
+        {job.fleetName ? ` · ${job.fleetName}` : ""}
+      </p>
+
+      {canDecide ? (
+        <div className="mt-4 rounded-lg bg-bg p-3">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Price from the desk</p>
+          <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">{money(job.quoteTotalNgn ?? 0)}</p>
+          {job.quoteEtaMinutes ? <p className="mt-1 text-sm text-muted">About {job.quoteEtaMinutes} minutes</p> : null}
+          <p className="mt-2 text-sm text-muted">Accept and pay. We hold the money until the parcel is delivered.</p>
+          <div className="mt-3 flex gap-2">
+            <Button type="button" className="flex-1" disabled={busy} onClick={() => void decide("accept")}>
+              Accept
+            </Button>
+            <Button type="button" variant="secondary" className="flex-1" disabled={busy} onClick={() => void decide("reject")}>
+              Reject
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {job.status === "accepted" || job.status === "payment_pending" ? (
+        <p className="mt-3 text-sm text-muted">
+          Transfer {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "the quoted amount"}. After we confirm it, you get
+          a 4-digit code for the receiver.
+        </p>
+      ) : null}
+
+      {showCode ? (
+        <div className="mt-4 rounded-lg bg-bg p-3">
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Receiver code</p>
+          <p className={cn("font-display mt-1 text-3xl tracking-[0.28em] tabular-nums")}>{job.deliveryCode}</p>
+          <p className="mt-2 text-sm text-muted">
+            Send this to the person receiving. They show it to the rider. We match it before we pay the fleet.
+          </p>
+        </div>
+      ) : null}
+    </li>
   );
 }
 

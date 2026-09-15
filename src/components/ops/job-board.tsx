@@ -7,7 +7,6 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   abortJob,
-  acceptQuote,
   addQuote,
   advanceJob,
   confirmDelivery,
@@ -103,7 +102,7 @@ export function JobBoard() {
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="font-mono text-sm">{job.publicId}</span>
-                      <span className="text-[11px] tracking-wide text-subtle uppercase">{job.status.replaceAll("_", " ")}</span>
+                      <span className="text-xs tracking-wide text-subtle uppercase">{job.status.replaceAll("_", " ")}</span>
                     </span>
                     <span className="text-sm text-muted">
                       {job.pickupLandmark} → {job.dropoffLandmark}
@@ -339,7 +338,7 @@ function JobDetail({
             hoursValid: 6,
           },
         }),
-      "Quote on the board",
+      "Price sent to sender",
     );
   }
 
@@ -368,6 +367,12 @@ function JobDetail({
 
       <div className="rounded-xl bg-bg p-4">
         <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Quotes</p>
+        <p className="mt-2 text-sm text-muted">
+          Call the fleet on WhatsApp, get a price, then send it to the sender. They accept or reject.
+        </p>
+        {job.status === "quoted" ? (
+          <p className="mt-2 text-sm font-medium">Waiting for the sender to accept or reject.</p>
+        ) : null}
         {quotes.length === 0 ? (
           <p className="mt-2 text-sm text-muted">None yet. Log what the fleet said.</p>
         ) : (
@@ -382,17 +387,6 @@ function JobDetail({
                   Fleet {money(quote.fleetPayoutNgn)} · Deli {money(quote.deliFeeNgn)} · {quote.etaMinutes} min · {quote.status}
                 </p>
                 {quote.terms ? <p className="mt-1 text-xs text-subtle">{quote.terms}</p> : null}
-                {canQuote && quote.status === "offered" ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-2"
-                    disabled={busy}
-                    onClick={() => void run(() => acceptQuote({ data: { jobId: job.id, quoteId: quote.id } }), "Quote accepted")}
-                  >
-                    Accept this quote
-                  </Button>
-                ) : null}
               </li>
             ))}
           </ul>
@@ -433,7 +427,7 @@ function JobDetail({
               </div>
             </div>
             <Button type="button" className="mt-3" onClick={() => void submitQuote()} disabled={!fleetId || busy}>
-              Add quote
+              Send price to sender
             </Button>
           </>
         ) : null}
@@ -463,7 +457,9 @@ function JobDetail({
         <div className="rounded-xl bg-bg p-4">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Delivery code</p>
           <p className="font-display mt-2 text-3xl tracking-[0.28em] tabular-nums">{job.deliveryCode}</p>
-          <p className="mt-1 text-sm text-muted">Read this to the recipient. The fleet does not need an app.</p>
+          <p className="mt-1 text-sm text-muted">
+            Sender has this code. Receiver shows it to the rider. Type it here to match, then pay the fleet.
+          </p>
         </div>
       ) : null}
 
@@ -480,7 +476,7 @@ function JobDetail({
       {job.status === "delivery_confirmation_pending" || job.status === "in_transit" ? (
         <div className="rounded-xl bg-bg p-4">
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Confirm delivery</p>
-          <Field label="Code from recipient">
+          <Field label="Code from the rider">
             <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" />
           </Field>
           <Button

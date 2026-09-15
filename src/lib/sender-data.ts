@@ -9,7 +9,12 @@ export type SenderProfile = {
   phone: string;
 };
 
-export type SenderJob = JobRow & { fleetName: string | null };
+export type SenderJob = JobRow & {
+  fleetName: string | null;
+  quoteId: string | null;
+  quoteTotalNgn: number | null;
+  quoteEtaMinutes: number | null;
+};
 
 export const getMySender = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -46,9 +51,17 @@ export const listMyJobs = createServerFn({ method: "GET" })
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     const rows = await sql.query<Record<string, unknown>>(
-      `select j.*, f.name as fleet_name
+      `select j.*, f.name as fleet_name,
+              q.id as quote_id, q.total_ngn as quote_total_ngn, q.eta_minutes as quote_eta_minutes
        from jobs j
-       left join fleets f on f.id = j.selected_fleet_id
+       left join lateral (
+         select id, fleet_id, total_ngn, eta_minutes
+         from quotes
+         where job_id = j.id and status in ('offered','accepted')
+         order by created_at desc
+         limit 1
+       ) q on true
+       left join fleets f on f.id = coalesce(j.selected_fleet_id, q.fleet_id)
        where j.sender_user_id = $1
        order by j.created_at desc`,
       [context.userId],
@@ -56,6 +69,9 @@ export const listMyJobs = createServerFn({ method: "GET" })
     return rows.map((row) => ({
       ...mapJob(row),
       fleetName: row.fleet_name ? String(row.fleet_name) : null,
+      quoteId: row.quote_id ? String(row.quote_id) : null,
+      quoteTotalNgn: row.quote_total_ngn != null ? Number(row.quote_total_ngn) : null,
+      quoteEtaMinutes: row.quote_eta_minutes != null ? Number(row.quote_eta_minutes) : null,
     })) satisfies SenderJob[];
   });
 
@@ -129,4 +145,73 @@ export const createSenderJob = createServerFn({ method: "POST" })
     );
     const rows = await sql.query(`select * from jobs where id = $1 and sender_user_id = $2`, [id, context.userId]);
     return mapJob(rows[0]!);
+  });
+
+export const acceptMyQuote = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ jobId: z.string(), quoteId: z.string() }))
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const jobs = await sql.query<{ id: string; status: string }>(
+      `select id, status from jobs where id = $1 and sender_user_id = $2`,
+      [data.jobId, context.userId],
+    );
+    const job = jobs[0];
+    if (!job) throw new Error("Job not found");
+    if (job.status !== "quoted") throw new Error("No price to accept on this job.");
+    const quotes = await sql.query<{ id: string; status: string; fleet_id: string }>(
+      `select id, status, fleet_id from quotes where id = $1 and job_id = $2`,
+      [data.quoteId, data.jobId],
+    );
+    const quote = quotes[0];
+    if (!quote || quote.status !== "offered") throw new Error("That price is no longer offered.");
+    await sql.query(`update quotes set status = 'accepted' where id = $1`, [quote.id]);
+    await sql.query(`update quotes set status = 'withdrawn' where job_id = $1 and id <> $2 and status = 'offered'`, [
+      data.jobId,
+      quote.id,
+    ]);
+    await sql.query(
+      `update jobs set selected_quote_id = $2, selected_fleet_id = $3, status = 'accepted', updated_at = now(), actor = 'sender'
+       where id = $1`,
+      [data.jobId, quote.id, quote.fleet_id],
+    );
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'quote_accepted',$3,'accepted',$4::jsonb,'sender')`,
+      [crypto.randomUUID(), data.jobId, job.status, JSON.stringify({ quoteId: quote.id, fleetId: quote.fleet_id })],
+    );
+    return { ok: true as const };
+  });
+
+export const rejectMyQuote = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ jobId: z.string(), quoteId: z.string() }))
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const jobs = await sql.query<{ id: string; status: string }>(
+      `select id, status from jobs where id = $1 and sender_user_id = $2`,
+      [data.jobId, context.userId],
+    );
+    const job = jobs[0];
+    if (!job) throw new Error("Job not found");
+    if (job.status !== "quoted") throw new Error("No price to reject on this job.");
+    const quotes = await sql.query<{ id: string; status: string }>(
+      `select id, status from quotes where id = $1 and job_id = $2`,
+      [data.quoteId, data.jobId],
+    );
+    const quote = quotes[0];
+    if (!quote || quote.status !== "offered") throw new Error("That price is no longer offered.");
+    await sql.query(`update quotes set status = 'withdrawn' where id = $1`, [quote.id]);
+    await sql.query(
+      `update jobs set status = 'quote_pending', updated_at = now(), actor = 'sender' where id = $1`,
+      [data.jobId],
+    );
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'quote_rejected','quoted','quote_pending',$3::jsonb,'sender')`,
+      [crypto.randomUUID(), data.jobId, JSON.stringify({ quoteId: quote.id })],
+    );
+    return { ok: true as const };
   });
