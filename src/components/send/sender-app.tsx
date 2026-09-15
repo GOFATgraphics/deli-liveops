@@ -6,9 +6,9 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RedirectToSignIn, SignInGate, UserButton } from "@/lib/auth/gates";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { createSenderJob, getMySender, listMyJobs, saveMySender, acceptMyQuote, rejectMyQuote, type SenderJob, type SenderProfile } from "@/lib/sender-data";
-import { confirmPaystackPayment, startPaystackCheckout } from "@/lib/payment-data";
-import { openPaystackCheckout } from "@/lib/paystack-popup";
+import { createSenderJob, getMySender, listMyJobs, saveMySender, rejectMyQuote, type SenderJob, type SenderProfile } from "@/lib/sender-data";
+import { acceptAndPay, startPaystackCheckout } from "@/lib/payment-data";
+import { goToPaystack } from "@/lib/paystack-redirect";
 import { cn } from "@/lib/utils";
 
 function kmBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
@@ -92,7 +92,7 @@ function SenderHome() {
               <div>
                 <h1 className="font-display text-2xl tracking-tight">Your jobs</h1>
                 <p className="mt-1 text-sm text-muted">
-                  Request a pickup. Accept the price, pay here, then you get a 4-digit code for the receiver.
+                  Request a pickup. Accept the price — that opens Paystack. The 4-digit code comes after you pay.
                 </p>
               </div>
               <Button type="button" onClick={() => setComposing(true)}>
@@ -147,19 +147,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
 
   async function payNow() {
     const started = await startPaystackCheckout({ data: { jobId: job.id, origin: window.location.origin } });
-    try {
-      const paidTxn = await openPaystackCheckout(started.accessCode);
-      await confirmPaystackPayment({ data: { reference: paidTxn.reference || started.reference } });
-      setPayOpen(false);
-      toast.success("Paid. Send the 4-digit code to the person receiving.");
-      onChanged();
-    } catch (error) {
-      if (error instanceof Error && error.message === "Payment cancelled") {
-        toast.error("Payment cancelled");
-        return;
-      }
-      window.location.assign(started.authorizationUrl);
-    }
+    goToPaystack(started.authorizationUrl);
   }
 
   async function decide(kind: "accept" | "reject") {
@@ -167,18 +155,17 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     setBusy(true);
     try {
       if (kind === "accept") {
-        setPayOpen(true);
-        await acceptMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
-        toast.success("Accepted. Pay now.");
-        await payNow();
-      } else {
-        await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
-        toast.success("Price rejected. We’ll get another one.");
-        onChanged();
+        const started = await acceptAndPay({
+          data: { jobId: job.id, quoteId: job.quoteId, origin: window.location.origin },
+        });
+        goToPaystack(started.authorizationUrl);
+        return;
       }
+      await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
+      toast.success("Price rejected. We’ll get another one.");
+      onChanged();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update");
-    } finally {
       setBusy(false);
     }
   }
@@ -206,10 +193,10 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
             {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "—"}
             {job.quoteEtaMinutes ? ` · about ${job.quoteEtaMinutes} min` : ""}
           </p>
-          <p className="mt-2 text-sm text-muted">Accept, then pay. You get the receiver code after payment.</p>
+          <p className="mt-2 text-sm text-muted">Accept opens Paystack. The receiver code comes after you pay.</p>
           <div className="mt-3 flex gap-2">
             <Button type="button" className="flex-1" disabled={busy} onClick={() => void decide("accept")}>
-              Accept
+              Accept and pay
             </Button>
             <Button type="button" variant="secondary" className="flex-1" disabled={busy} onClick={() => void decide("reject")}>
               Reject
@@ -220,16 +207,17 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
 
       {payOpen && !showCode ? (
         <div className="mt-4 rounded-lg bg-bg p-3">
-          <p className="text-sm text-muted">Pay to confirm this delivery. The 4-digit receiver code is issued after Paystack confirms — not before.</p>
+          <p className="text-sm text-muted">Paystack checkout — card, bank, USSD, or OPay. No code until that payment lands.</p>
           <Button
             type="button"
             className="mt-3 w-full"
             disabled={busy}
             onClick={() => {
               setBusy(true);
-              void payNow()
-                .catch((error) => toast.error(error instanceof Error ? error.message : "Could not start payment"))
-                .finally(() => setBusy(false));
+              void payNow().catch((error) => {
+                toast.error(error instanceof Error ? error.message : "Could not start payment");
+                setBusy(false);
+              });
             }}
           >
             Pay {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "now"}
