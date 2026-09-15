@@ -90,8 +90,7 @@ function SenderHome() {
               <div>
                 <h1 className="font-display text-2xl tracking-tight">Your jobs</h1>
                 <p className="mt-1 text-sm text-muted">
-                  Request a pickup. We get a price from a fleet. You accept or reject. After you pay, you get a 4-digit
-                  code for the person receiving.
+                  Request a pickup. We send you a price. Accept it and you get a 4-digit code for the person receiving.
                 </p>
               </div>
               <Button type="button" onClick={() => setComposing(true)}>
@@ -121,6 +120,8 @@ function money(n: number) {
 }
 
 const CODE_STATUSES = [
+  "accepted",
+  "payment_pending",
   "paid",
   "assigned",
   "picked_up",
@@ -141,7 +142,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
     try {
       if (kind === "accept") {
         await acceptMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
-        toast.success("Price accepted. Transfer the amount — we hold it until delivery.");
+        toast.success("Accepted. Send the 4-digit code to the person receiving.");
       } else {
         await rejectMyQuote({ data: { jobId: job.id, quoteId: job.quoteId } });
         toast.success("Price rejected. We’ll get another one.");
@@ -173,7 +174,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
           <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Price from the desk</p>
           <p className="font-display mt-1 text-3xl tracking-tight tabular-nums">{money(job.quoteTotalNgn ?? 0)}</p>
           {job.quoteEtaMinutes ? <p className="mt-1 text-sm text-muted">About {job.quoteEtaMinutes} minutes</p> : null}
-          <p className="mt-2 text-sm text-muted">Accept and pay. We hold the money until the parcel is delivered.</p>
+          <p className="mt-2 text-sm text-muted">Accept this price. You get a 4-digit code for the receiver.</p>
           <div className="mt-3 flex gap-2">
             <Button type="button" className="flex-1" disabled={busy} onClick={() => void decide("accept")}>
               Accept
@@ -187,8 +188,7 @@ function SenderJobCard({ job, onChanged }: { job: SenderJob; onChanged: () => vo
 
       {job.status === "accepted" || job.status === "payment_pending" ? (
         <p className="mt-3 text-sm text-muted">
-          Transfer {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "the quoted amount"}. After we confirm it, you get
-          a 4-digit code for the receiver.
+          Transfer {job.quoteTotalNgn != null ? money(job.quoteTotalNgn) : "the amount"}. We hold it until delivery.
         </p>
       ) : null}
 

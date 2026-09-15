@@ -130,7 +130,7 @@ export function JobBoard() {
             job={selected}
             quotes={quotes}
             events={events}
-            fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status }))}
+            fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status, phone: f.phone }))}
             onChanged={async () => {
               const next = await refresh();
               const current = next.find((job) => job.id === selected.id);
@@ -257,23 +257,10 @@ function NewJobForm({
   );
 }
 
-function phoneVisible(status: JobStatus) {
-  return [
-    "paid",
-    "assigned",
-    "picked_up",
-    "in_transit",
-    "delivery_confirmation_pending",
-    "delivered",
-    "settlement_pending",
-    "settled",
-  ].includes(status);
-}
-
-function maskPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 7) return "Hidden until paid";
-  return `${phone.slice(0, 4)} ••• ${phone.slice(-3)}`;
+function waLink(phone: string) {
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 11) digits = `234${digits.slice(1)}`;
+  return `https://wa.me/${digits}`;
 }
 
 const NEXT_LABEL: Partial<Record<JobStatus, string>> = {
@@ -293,7 +280,7 @@ function JobDetail({
   job: JobRow;
   quotes: QuoteRow[];
   events: JobEventRow[];
-  fleets: { id: string; name: string; status: string }[];
+  fleets: { id: string; name: string; status: string; phone: string }[];
   onChanged: () => Promise<void>;
 }) {
   const [fleetId, setFleetId] = useState(fleets.find((f) => f.status === "active")?.id ?? "");
@@ -306,6 +293,7 @@ function JobDetail({
   const [payoutNote, setPayoutNote] = useState("");
   const [abortReason, setAbortReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const selectedFleet = fleets.find((f) => f.id === fleetId);
   const selectedQuote = quotes.find((q) => q.id === job.selectedQuoteId) ?? quotes.find((q) => q.status === "accepted");
   const canQuote =
     job.status === "requested" || job.status === "quote_pending" || job.status === "quoted";
@@ -352,23 +340,32 @@ function JobDetail({
         <p className="mt-1 text-sm text-muted">
           {job.distanceKm} km · {job.goods} · {job.status.replaceAll("_", " ")}
         </p>
+        {job.constraints ? <p className="mt-1 text-sm text-muted">{job.constraints}</p> : null}
       </div>
 
       <div className="rounded-xl bg-bg p-4">
         <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Sender</p>
         <p className="mt-2 text-sm font-medium">{job.senderName}</p>
-        <p className="mt-1 font-mono text-sm text-muted">
-          {phoneVisible(job.status) ? job.senderPhone : maskPhone(job.senderPhone)}
-        </p>
-        {!phoneVisible(job.status) ? (
-          <p className="mt-1 text-xs text-subtle">Full number unlocks after payment is marked.</p>
-        ) : null}
+        <p className="mt-1 font-mono text-sm">{job.senderPhone}</p>
+        <div className="mt-3 flex gap-2">
+          <a href={`tel:${job.senderPhone.replace(/\s/g, "")}`} className="text-sm underline-offset-4 hover:underline">
+            Call
+          </a>
+          <a
+            href={waLink(job.senderPhone)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm underline-offset-4 hover:underline"
+          >
+            WhatsApp
+          </a>
+        </div>
       </div>
 
       <div className="rounded-xl bg-bg p-4">
         <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Quotes</p>
         <p className="mt-2 text-sm text-muted">
-          Call the fleet on WhatsApp, get a price, then send it to the sender. They accept or reject.
+          Call the fleet, get a price, then WhatsApp or send it here. Sender accepts or rejects.
         </p>
         {job.status === "quoted" ? (
           <p className="mt-2 text-sm font-medium">Waiting for the sender to accept or reject.</p>
@@ -410,6 +407,13 @@ function JobDetail({
                       </option>
                     ))}
                 </select>
+                {selectedFleet?.phone ? (
+                  <p className="text-sm text-muted">
+                    <a href={waLink(selectedFleet.phone)} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+                      {selectedFleet.phone}
+                    </a>
+                  </p>
+                ) : null}
               </label>
               <Field label="Total NGN">
                 <Input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="numeric" />
@@ -453,12 +457,12 @@ function JobDetail({
         </div>
       ) : null}
 
-      {job.deliveryCode && phoneVisible(job.status) ? (
+      {job.deliveryCode ? (
         <div className="rounded-xl bg-bg p-4">
-          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Delivery code</p>
+          <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Receiver code</p>
           <p className="font-display mt-2 text-3xl tracking-[0.28em] tabular-nums">{job.deliveryCode}</p>
           <p className="mt-1 text-sm text-muted">
-            Sender has this code. Receiver shows it to the rider. Type it here to match, then pay the fleet.
+            Sender has this 4-digit code. Receiver shows it to the rider. Match it here before you pay the fleet.
           </p>
         </div>
       ) : null}

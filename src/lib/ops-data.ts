@@ -469,7 +469,7 @@ const ADVANCE: Partial<Record<JobStatus, JobStatus>> = {
   delivered: "settlement_pending",
 };
 
-function fourDigit() {
+export function fourDigit() {
   return String(1000 + Math.floor(Math.random() * 9000));
 }
 
