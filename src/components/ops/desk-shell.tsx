@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Bike, ClipboardList, Database, LayoutDashboard, Map } from "lucide-react";
+import { Banknote, Bike, ClipboardList, Database, LayoutDashboard, Map, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { UserButton } from "@/lib/auth/gates";
@@ -8,14 +8,16 @@ import { usePartners } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true, group: "Desk" },
-  { to: "/admin/jobs", label: "Jobs", icon: ClipboardList, exact: false, group: "Desk" },
-  { to: "/admin/map", label: "Map", icon: Map, exact: false, group: "Desk" },
-  { to: "/admin/fleets", label: "Fleets", icon: Bike, exact: false, group: "Network" },
-  { to: "/admin/records", label: "Records", icon: Database, exact: false, group: "Network" },
+  { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true, group: "Desk", mobile: true },
+  { to: "/admin/jobs", label: "Jobs", icon: ClipboardList, exact: false, group: "Desk", mobile: true },
+  { to: "/admin/map", label: "Map", icon: Map, exact: false, group: "Desk", mobile: false },
+  { to: "/admin/senders", label: "Senders", icon: Users, exact: false, group: "Network", mobile: true },
+  { to: "/admin/fleets", label: "Fleets", icon: Bike, exact: false, group: "Network", mobile: true },
+  { to: "/admin/payments", label: "Payments", icon: Banknote, exact: false, group: "Money", mobile: true },
+  { to: "/admin/records", label: "Records", icon: Database, exact: false, group: "Money", mobile: false },
 ] as const;
 
-const GROUPS = ["Desk", "Network"] as const;
+const GROUPS = ["Desk", "Network", "Money"] as const;
 
 function navActive(pathname: string, to: string, exact: boolean) {
   if (exact) return pathname === "/admin" || pathname === "/admin/";
@@ -36,7 +38,7 @@ function LivePulse() {
   );
 }
 
-function JobsBadge({ count }: { count: number }) {
+function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-fg px-1.5 py-px text-[10px] font-medium tabular-nums text-accent-fg">
@@ -48,7 +50,7 @@ function JobsBadge({ count }: { count: number }) {
 export function DeskShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hydrate = usePartners((s) => s.hydrate);
-  const [counts, setCounts] = useState({ openJobs: 0, quotePending: 0 });
+  const [counts, setCounts] = useState({ openJobs: 0, quotePending: 0, pendingPayments: 0 });
 
   useEffect(() => {
     hydrate();
@@ -98,6 +100,7 @@ export function DeskShell() {
                 {NAV.filter((item) => item.group === group).map((item) => {
                   const active = navActive(pathname, item.to, item.exact);
                   const jobs = item.to === "/admin/jobs";
+                  const payments = item.to === "/admin/payments";
                   return (
                     <Link
                       key={item.to}
@@ -114,7 +117,8 @@ export function DeskShell() {
                     >
                       <item.icon className="size-4 shrink-0" />
                       {item.label}
-                      {jobs ? <JobsBadge count={counts.openJobs} /> : null}
+                      {jobs ? <CountBadge count={counts.openJobs} /> : null}
+                      {payments ? <CountBadge count={counts.pendingPayments} /> : null}
                     </Link>
                   );
                 })}
@@ -160,9 +164,10 @@ export function DeskShell() {
         aria-label="Desk"
       >
         <div className="flex">
-          {NAV.map((item) => {
+          {NAV.filter((item) => item.mobile).map((item) => {
             const active = navActive(pathname, item.to, item.exact);
             const jobs = item.to === "/admin/jobs";
+            const payments = item.to === "/admin/payments";
             return (
               <Link
                 key={item.to}
@@ -183,6 +188,11 @@ export function DeskShell() {
                   {jobs && counts.openJobs > 0 ? (
                     <span className="absolute -top-1 -right-2 grid min-w-3.5 place-items-center rounded-full bg-fg px-1 text-[9px] font-medium leading-4 tabular-nums text-accent-fg">
                       {counts.openJobs > 9 ? "9+" : counts.openJobs}
+                    </span>
+                  ) : null}
+                  {payments && counts.pendingPayments > 0 ? (
+                    <span className="absolute -top-1 -right-2 grid min-w-3.5 place-items-center rounded-full bg-fg px-1 text-[9px] font-medium leading-4 tabular-nums text-accent-fg">
+                      {counts.pendingPayments > 9 ? "9+" : counts.pendingPayments}
                     </span>
                   ) : null}
                 </span>
