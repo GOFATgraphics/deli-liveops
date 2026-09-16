@@ -18,6 +18,7 @@ import { Route as SendRouteImport } from './routes/send'
 import { Route as SendIndexRouteImport } from './routes/_send/index'
 import { Route as SendAccountRouteImport } from './routes/_send/account'
 import { Route as SendRequestRouteImport } from './routes/_send/request'
+import { Route as SendTrackRouteImport } from './routes/_send/track'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFleetsRouteImport } from './routes/admin/fleets'
 import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
@@ -72,6 +73,11 @@ const SendAccountRoute = SendAccountRouteImport.update({
 const SendRequestRoute = SendRequestRouteImport.update({
   id: '/request',
   path: '/request',
+  getParentRoute: () => SendRouteRoute,
+} as any)
+const SendTrackRoute = SendTrackRouteImport.update({
+  id: '/track',
+  path: '/track',
   getParentRoute: () => SendRouteRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/send': typeof SendRoute
   '/account': typeof SendAccountRoute
   '/request': typeof SendRequestRoute
+  '/track': typeof SendTrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/send': typeof SendRoute
   '/account': typeof SendAccountRoute
   '/request': typeof SendRequestRoute
+  '/track': typeof SendTrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/send': typeof SendRoute
   '/_send/account': typeof SendAccountRoute
   '/_send/request': typeof SendRequestRoute
+  '/_send/track': typeof SendTrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/send'
     | '/account'
     | '/request'
+    | '/track'
     | '/admin/fleets'
     | '/admin/jobs'
     | '/admin/map'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/send'
     | '/account'
     | '/request'
+    | '/track'
     | '/admin/fleets'
     | '/admin/jobs'
     | '/admin/map'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/send'
     | '/_send/account'
     | '/_send/request'
+    | '/_send/track'
     | '/admin/fleets'
     | '/admin/jobs'
     | '/admin/map'
@@ -337,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SendRequestRouteImport
       parentRoute: typeof SendRouteRoute
     }
+    '/_send/track': {
+      id: '/_send/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof SendTrackRouteImport
+      parentRoute: typeof SendRouteRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -420,6 +439,7 @@ declare module '@tanstack/react-router' {
 interface SendRouteRouteChildren {
   SendAccountRoute: typeof SendAccountRoute
   SendRequestRoute: typeof SendRequestRoute
+  SendTrackRoute: typeof SendTrackRoute
   SendIndexRoute: typeof SendIndexRoute
   SendJobJobIdRoute: typeof SendJobJobIdRoute
 }
@@ -427,6 +447,7 @@ interface SendRouteRouteChildren {
 const SendRouteRouteChildren: SendRouteRouteChildren = {
   SendAccountRoute: SendAccountRoute,
   SendRequestRoute: SendRequestRoute,
+  SendTrackRoute: SendTrackRoute,
   SendIndexRoute: SendIndexRoute,
   SendJobJobIdRoute: SendJobJobIdRoute,
 }

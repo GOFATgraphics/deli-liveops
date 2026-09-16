@@ -153,7 +153,8 @@ async function createPgliteSql(): Promise<Sql> {
     const done = doneRows.rows.map((r) => r.name);
     for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) {
       // Apply + record atomically (parity with scripts/migrate.mjs) so a failed
-      // statement can't leave a file half-applied but untracked.
+      // statement can't leave a file half-applied but untracked. New files
+      // such as sender logo apply on the next getSql after HMR.
       await pg.transaction(async (tx) => {
         await tx.exec(migrations[path]);
         await tx.query("insert into _migrations (name) values ($1)", [name]);

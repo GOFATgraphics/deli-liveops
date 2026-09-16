@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SenderApp } from "@/components/send/sender-app";
+import { SenderLayout } from "@/components/send/sender-shell";
 
-export const Route = createFileRoute("/")({
-  component: Home,
+export const Route = createFileRoute("/_send")({
+  component: SenderLayout,
   head: () => ({
     meta: [
       { title: "Deli" },
@@ -10,7 +10,3 @@ export const Route = createFileRoute("/")({
     ],
   }),
 });
-
-function Home() {
-  return <SenderApp />;
-}

@@ -10,8 +10,41 @@ function providerLabel(provider: string) {
   return provider.replaceAll("_", " ");
 }
 
+type StatusFilter = "all" | "paid" | "pending";
+type RangeFilter = "all" | "today" | "yesterday" | "7" | "15" | "30" | "60";
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "paid", label: "Paid" },
+  { id: "pending", label: "Pending" },
+];
+
+const RANGE_FILTERS: { id: RangeFilter; label: string }[] = [
+  { id: "all", label: "Any time" },
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "7", label: "7 days" },
+  { id: "15", label: "15 days" },
+  { id: "30", label: "30 days" },
+  { id: "60", label: "60 days" },
+];
+
+function inRange(iso: string | null, range: RangeFilter) {
+  if (range === "all") return true;
+  const t = new Date(iso ?? 0).getTime();
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = 86_400_000;
+  if (range === "today") return t >= startOfToday;
+  if (range === "yesterday") return t >= startOfToday - day && t < startOfToday;
+  const days = Number(range);
+  return t >= startOfToday - days * day;
+}
+
 export function PaymentsDesk() {
   const [rows, setRows] = useState<DeskPayment[] | null>(null);
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [range, setRange] = useState<RangeFilter>("all");
 
   useEffect(() => {
     void getDeskPayments()
@@ -19,12 +52,19 @@ export function PaymentsDesk() {
       .catch((error) => toast.error(error instanceof Error ? error.message : "Could not load"));
   }, []);
 
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter((row) => {
+      if (status !== "all" && row.status !== status) return false;
+      return inRange(row.paidAt ?? row.createdAt, range);
+    });
+  }, [rows, status, range]);
+
   const totals = useMemo(() => {
-    if (!rows) return null;
-    const paid = rows.filter((row) => row.status === "paid");
-    const pending = rows.filter((row) => row.status === "pending");
+    const paid = filtered.filter((row) => row.status === "paid");
+    const pending = filtered.filter((row) => row.status === "pending");
     return {
-      count: rows.length,
+      count: filtered.length,
       paid: paid.length,
       pending: pending.length,
       collected: paid.reduce((sum, row) => sum + row.amountNgn, 0),
@@ -32,21 +72,36 @@ export function PaymentsDesk() {
       fleet: paid.reduce((sum, row) => sum + row.fleetPayoutNgn, 0),
       waiting: pending.reduce((sum, row) => sum + row.amountNgn, 0),
     };
-  }, [rows]);
+  }, [filtered]);
 
-  if (!rows || !totals) {
+  if (!rows) {
     return <div className="m-4 h-40 animate-pulse rounded-xl bg-raised" />;
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-8">
         <div>
           <p className="text-xs font-medium tracking-[0.18em] text-subtle uppercase">Money</p>
           <h1 className="font-display mt-1 text-3xl tracking-tight">Payments</h1>
           <p className="mt-2 text-sm text-muted">
-            Every Paystack checkout and desk mark. Paid orders are the ones with a successful transaction.
+            Every Paystack checkout and desk mark. Filter by paid, pending, and date.
           </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <ChipRow
+            label="Status"
+            items={STATUS_FILTERS}
+            value={status}
+            onChange={setStatus}
+          />
+          <ChipRow
+            label="When"
+            items={RANGE_FILTERS}
+            value={range}
+            onChange={setRange}
+          />
         </div>
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -56,13 +111,13 @@ export function PaymentsDesk() {
           <Stat label="Fleet due" value={naira(totals.fleet)} hint="Payout on paid jobs" />
         </section>
 
-        {rows.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className="rounded-xl bg-raised px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-hairline)]">
-            No transactions yet. When a sender pays, the row lands here.
+            No transactions in this filter.
           </p>
         ) : (
           <ul className="overflow-hidden rounded-xl bg-raised shadow-[var(--shadow-hairline)]">
-            {rows.map((pay, index) => (
+            {filtered.map((pay, index) => (
               <li key={pay.id} className={cn(index > 0 && "border-t border-border")}>
                 <Link
                   to="/admin/jobs"
@@ -89,6 +144,42 @@ export function PaymentsDesk() {
             ))}
           </ul>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ChipRow<T extends string>({
+  label,
+  items,
+  value,
+  onChange,
+}: {
+  label: string;
+  items: { id: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-[10px] font-medium tracking-[0.16em] text-subtle uppercase">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => {
+          const active = item.id === value;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange(item.id)}
+              className={cn(
+                "h-11 rounded-full px-3 text-sm",
+                active ? "bg-fg text-accent-fg" : "bg-raised text-muted shadow-[var(--shadow-hairline)]",
+              )}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

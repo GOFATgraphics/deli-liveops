@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { Check, Eye, EyeOff, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -7,10 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandMark } from "@/components/brand-mark";
 import { saveMySender } from "@/lib/sender-data";
+import { emailLooksValid } from "@/lib/utils";
+
+function parseNext(value: unknown) {
+  if (value === "/admin" || (typeof value === "string" && value.startsWith("/admin/"))) return "/admin" as const;
+  if (value === "/request" || value === "/account" || value === "/track") return value;
+  if (typeof value === "string" && value.startsWith("/job/")) return value;
+  return "/" as const;
+}
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
-    next: search.next === "/admin" ? ("/admin" as const) : ("/" as const),
+    next: parseNext(search.next),
   }),
   component: Login,
   head: () => ({
@@ -36,8 +45,10 @@ function Login() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const emailState = emailLooksValid(email);
 
   if (isPending) {
     return (
@@ -120,26 +131,50 @@ function Login() {
               </>
             ) : null}
             <Field label="Email">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-              />
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  aria-invalid={emailState === false}
+                  className="pr-11"
+                />
+                {emailState === true ? (
+                  <Check className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-fg" aria-hidden />
+                ) : null}
+                {emailState === false ? (
+                  <X className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+                ) : null}
+              </div>
+              {emailState === true ? <p className="text-sm text-muted">Email looks right.</p> : null}
+              {emailState === false ? <p className="text-sm text-muted">That email doesn’t look right.</p> : null}
             </Field>
             <Field label="Password">
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "up" ? "new-password" : "current-password"}
-                minLength={8}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === "up" ? "new-password" : "current-password"}
+                  minLength={8}
+                  required
+                  className="pr-11"
+                />
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-1 grid size-9 -translate-y-1/2 place-items-center text-muted"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((open) => !open)}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </Field>
             {error ? <p className="text-sm text-fg">{error}</p> : null}
-            <Button type="submit" disabled={busy} className="mt-1 w-full">
+            <Button type="submit" disabled={busy || emailState === false} className="mt-1 w-full">
               {busy ? "Working…" : mode === "in" ? "Sign in" : "Create account"}
             </Button>
           </form>

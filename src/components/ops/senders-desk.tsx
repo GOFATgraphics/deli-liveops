@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PartnerPhoto } from "@/components/ops/partner-photo";
 import {
   getDeskSenderJobs,
   getDeskSenders,
@@ -62,17 +63,20 @@ export function SendersDesk() {
                     type="button"
                     onClick={() => setSelectedId(sender.userId)}
                     className={cn(
-                      "flex w-full flex-col gap-0.5 rounded-lg px-3 py-3 text-left",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left",
                       selectedId === sender.userId ? "bg-raised shadow-[var(--shadow-hairline)]" : "hover:bg-fg/4",
                     )}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium">{sender.name || "Unnamed"}</span>
-                      <span className="text-sm tabular-nums">{naira(sender.spentNgn)}</span>
-                    </span>
-                    <span className="text-sm text-muted">
-                      {sender.phone}
-                      {sender.paidJobs > 0 ? ` · ${sender.paidJobs} paid` : ""}
+                    <PartnerPhoto src={sender.logo} alt="" className="size-9 shrink-0 rounded-md" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium">{sender.name || "Unnamed"}</span>
+                        <span className="text-sm tabular-nums">{naira(sender.spentNgn)}</span>
+                      </span>
+                      <span className="text-sm text-muted">
+                        {sender.phone}
+                        {sender.paidJobs > 0 ? ` · ${sender.paidJobs} paid` : ""}
+                      </span>
                     </span>
                   </button>
                 </li>
@@ -85,11 +89,14 @@ export function SendersDesk() {
       <section className="min-h-0 overflow-y-auto bg-raised">
         {selected ? (
           <div className="mx-auto flex max-w-xl flex-col gap-6 p-4 md:p-6">
-            <div>
+            <div className="flex items-start gap-3">
+              <PartnerPhoto src={selected.logo} alt="" className="size-12 shrink-0 rounded-lg" />
+              <div className="min-w-0">
               <p className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">Sender</p>
               <h2 className="font-display mt-1 text-2xl tracking-tight">{selected.name || "Unnamed"}</h2>
               <p className="mt-1 text-sm text-muted">{selected.phone}</p>
               {selected.email ? <p className="text-sm text-muted">{selected.email}</p> : null}
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <Mini label="Jobs" value={String(selected.jobs)} />

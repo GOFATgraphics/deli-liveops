@@ -77,7 +77,7 @@ export function DeskShell() {
   const title = pageTitle(pathname);
 
   return (
-    <div className="flex h-dvh flex-col bg-bg md:flex-row">
+    <div className="flex h-dvh max-w-[100vw] flex-col overflow-x-hidden bg-bg md:flex-row">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-raised md:flex">
         <div className="flex items-center gap-3 border-b border-border px-4 py-4">
           <BrandMark className="size-9" />

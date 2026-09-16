@@ -1,12 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { mapJob, type JobRow } from "@/lib/ops-data";
+import { mapJob, expireUnpaidJobs, type JobRow } from "@/lib/ops-data";
 
 export type SenderProfile = {
   userId: string;
   name: string;
   phone: string;
+  logo: string;
 };
 
 export type SenderJob = JobRow & {
@@ -21,18 +22,23 @@ export const getMySender = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    const rows = await sql.query<{ user_id: string; name: string; phone: string }>(
-      `select user_id, name, phone from senders where user_id = $1`,
+    const rows = await sql.query<{ user_id: string; name: string; phone: string; logo: string }>(
+      `select user_id, name, phone, logo from senders where user_id = $1`,
       [context.userId],
     );
     const row = rows[0];
     if (!row) return null;
-    return { userId: String(row.user_id), name: String(row.name ?? ""), phone: String(row.phone ?? "") };
+    return {
+      userId: String(row.user_id),
+      name: String(row.name ?? ""),
+      phone: String(row.phone ?? ""),
+      logo: String(row.logo ?? ""),
+    };
   });
 
 export const saveMySender = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ name: z.string().min(2), phone: z.string().min(7) }))
+  .validator(z.object({ name: z.string().min(2), phone: z.string().min(7), logo: z.string().max(800_000).optional() }))
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -42,6 +48,12 @@ export const saveMySender = createServerFn({ method: "POST" })
        on conflict (user_id) do update set name = excluded.name, phone = excluded.phone, updated_at = now()`,
       [context.userId, data.name.trim(), data.phone.trim()],
     );
+    if (data.logo !== undefined) {
+      await sql.query(`update senders set logo = $2, updated_at = now() where user_id = $1`, [
+        context.userId,
+        data.logo,
+      ]);
+    }
     return { ok: true as const };
   });
 
@@ -50,6 +62,7 @@ export const listMyJobs = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
+    await expireUnpaidJobs(sql);
     const rows = await sql.query<Record<string, unknown>>(
       `select j.*, f.name as fleet_name,
               q.id as quote_id, q.total_ngn as quote_total_ngn, q.eta_minutes as quote_eta_minutes
@@ -63,6 +76,7 @@ export const listMyJobs = createServerFn({ method: "GET" })
        ) q on true
        left join fleets f on f.id = coalesce(j.selected_fleet_id, q.fleet_id)
        where j.sender_user_id = $1
+         and j.status not in ('cancelled','failed','refunded')
        order by j.created_at desc`,
       [context.userId],
     );
@@ -225,6 +239,35 @@ export const rejectMyQuote = createServerFn({ method: "POST" })
       `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
        values ($1,$2,'quote_rejected','quoted','quote_pending',$3::jsonb,'sender')`,
       [crypto.randomUUID(), data.jobId, JSON.stringify({ quoteId: quote.id })],
+    );
+    return { ok: true as const };
+  });
+
+export const cancelMyJob = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ jobId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const jobs = await sql.query<{ id: string; status: string }>(
+      `select id, status from jobs where id = $1 and sender_user_id = $2`,
+      [data.jobId, context.userId],
+    );
+    const job = jobs[0];
+    if (!job) throw new Error("Job not found");
+    if (!["requested", "quote_pending", "quoted", "accepted", "payment_pending"].includes(job.status)) {
+      throw new Error("Paid deliveries cannot be deleted.");
+    }
+    await sql.query(
+      `update jobs set status = 'cancelled', updated_at = now(), actor = 'sender' where id = $1`,
+      [job.id],
+    );
+    await sql.query(`update quotes set status = 'withdrawn' where job_id = $1 and status = 'offered'`, [job.id]);
+    await sql.query(`update payments set status = 'failed' where job_id = $1 and status = 'pending'`, [job.id]);
+    await sql.query(
+      `insert into job_events (id, job_id, kind, from_status, to_status, payload, actor)
+       values ($1,$2,'cancelled',$3,'cancelled',$4::jsonb,'sender')`,
+      [crypto.randomUUID(), job.id, job.status, JSON.stringify({ source: "sender" })],
     );
     return { ok: true as const };
   });

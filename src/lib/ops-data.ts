@@ -76,6 +76,32 @@ export type JobEventRow = {
   at: string;
 };
 
+type SqlClient = {
+  query: <T = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<T[]>;
+};
+
+export async function expireUnpaidJobs(sql: SqlClient) {
+  const stale = await sql.query<{ id: string }>(
+    `update jobs
+     set status = 'cancelled', updated_at = now(), actor = 'system'
+     where status in ('requested','quote_pending','quoted','accepted','payment_pending')
+       and created_at < now() - interval '24 hours'
+     returning id`,
+  );
+  if (stale.length === 0) return 0;
+  const ids = stale.map((row) => row.id);
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+  await sql.query(
+    `update payments set status = 'failed' where status = 'pending' and job_id in (${placeholders})`,
+    ids,
+  );
+  await sql.query(
+    `update quotes set status = 'withdrawn' where status = 'offered' and job_id in (${placeholders})`,
+    ids,
+  );
+  return ids.length;
+}
+
 type FleetJoin = {
   id: string;
   name: string;
@@ -281,7 +307,10 @@ export function mapJob(row: Record<string, unknown>): JobRow {
 export const listJobs = createServerFn({ method: "GET" }).middleware([operatorMiddleware]).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  const rows = await sql.query(`select * from jobs order by created_at desc`);
+  await expireUnpaidJobs(sql);
+  const rows = await sql.query(
+    `select * from jobs where status not in ('cancelled','failed','refunded') order by created_at desc`,
+  );
   return rows.map(mapJob);
 });
 
@@ -543,12 +572,10 @@ export const markPaid = createServerFn({ method: "POST" })
     ]);
     const amount = Number(quote[0]?.total_ngn ?? 0);
     const code = job.deliveryCode ?? fourDigit();
-    const staffRef = data.reference.trim();
-    const providerRef = `desk-${job.id}-${staffRef}`.slice(0, 100);
     await sql.query(
       `insert into payments (id, job_id, quote_id, amount_ngn, currency, provider, provider_ref, status, paid_at)
        values ($1,$2,$3,$4,'NGN','desk_transfer',$5,'paid', now())`,
-      [crypto.randomUUID(), job.id, job.selectedQuoteId, amount, providerRef],
+      [crypto.randomUUID(), job.id, job.selectedQuoteId, amount, data.reference.trim()],
     );
     await sql.query(`update jobs set delivery_code = $2, status = 'paid', updated_at = now(), actor = 'ops' where id = $1`, [
       job.id,

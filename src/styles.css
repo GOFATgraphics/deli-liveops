@@ -34,14 +34,22 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 
   html,
   body,
   #app {
     min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
     background: var(--color-bg);
     color: var(--color-fg);
+  }
+
+  body {
+    overscroll-behavior-x: none;
   }
 
   h1,
@@ -75,6 +83,8 @@
   font-family: var(--font-sans);
   background: var(--color-map);
   color: var(--color-fg);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .leaflet-container img {
@@ -185,6 +195,26 @@
 
 .hub-place-dot.is-junction {
   background: var(--color-fg);
+}
+
+.route-pin {
+  background: transparent;
+  border: none;
+}
+
+.route-pin-dot {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-fg);
+  color: var(--color-accent-fg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  border: 2px solid var(--color-raised);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
 }
 
 

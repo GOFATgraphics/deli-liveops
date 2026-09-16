@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { expireUnpaidJobs } from "@/lib/ops-data";
 import { operatorMiddleware } from "@/lib/operator-data";
 
 const CLOSED = new Set(["settled", "cancelled", "failed", "refunded"]);
@@ -41,6 +42,7 @@ export type DeskSenderRow = {
   name: string;
   phone: string;
   email: string | null;
+  logo: string;
   jobs: number;
   paidJobs: number;
   spentNgn: number;
@@ -142,6 +144,7 @@ function mapSender(row: Record<string, unknown>): DeskSenderRow {
     name: String(row.name ?? ""),
     phone: String(row.phone ?? ""),
     email: row.email ? String(row.email) : null,
+    logo: String(row.logo ?? ""),
     jobs: n(row.jobs),
     paidJobs: n(row.paid_jobs),
     spentNgn: n(row.spent_ngn),
@@ -164,7 +167,7 @@ const PAYMENT_SELECT = `
 
 const SENDER_SELECT = `
   select
-    s.user_id, s.name, s.phone, s.created_at, u.email,
+    s.user_id, s.name, s.phone, s.logo, s.created_at, u.email,
     coalesce(j.jobs, 0)::int as jobs,
     coalesce(j.paid_jobs, 0)::int as paid_jobs,
     coalesce(p.spent_ngn, 0)::int as spent_ngn
@@ -192,6 +195,7 @@ export const getDeskOverview = createServerFn({ method: "GET" })
   .handler(async (): Promise<DeskOverview> => {
     const { getSql, dbSource } = await import("@/lib/db");
     const sql = await getSql();
+    await expireUnpaidJobs(sql);
     const counts = await sql.query<{ status: string; n: number }>(
       `select status, count(*)::int as n from jobs group by status`,
     );
@@ -237,7 +241,9 @@ export const getDeskOverview = createServerFn({ method: "GET" })
       created_at: string;
     }>(
       `select id, public_id, status, pickup_landmark, dropoff_landmark, sender_name, created_at
-       from jobs order by created_at desc limit 8`,
+       from jobs
+       where status not in ('cancelled','failed','refunded')
+       order by created_at desc limit 8`,
     );
     const recentPayments = await sql.query<Record<string, unknown>>(
       `${PAYMENT_SELECT} order by coalesce(p.paid_at, p.created_at) desc limit 8`,
@@ -287,6 +293,7 @@ export const getDeskNavCounts = createServerFn({ method: "GET" })
   .handler(async (): Promise<DeskNavCounts> => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
+    await expireUnpaidJobs(sql);
     const counts = await sql.query<{ status: string; n: number }>(
       `select status, count(*)::int as n from jobs group by status`,
     );

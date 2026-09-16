@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { PwaRegister } from "@/components/pwa-register";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
@@ -10,9 +11,13 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: APP_NAME },
       { name: "theme-color", content: "#f4f4f5" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "Deli" },
+      { name: "mobile-web-app-capable", content: "yes" },
       {
         name: "description",
         content: "Request a pickup and dropoff in Kano.",
@@ -20,6 +25,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "apple-touch-icon", href: "/icon-180.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -32,12 +38,13 @@ export const Route = createRootRoute({
     ],
   }),
   component: () => (
-    <html lang="en" className="antialiased" suppressHydrationWarning>
+    <html lang="en" className="overflow-x-hidden antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body className="bg-bg text-fg font-sans">
+      <body className="bg-bg text-fg max-w-[100vw] overflow-x-hidden font-sans">
         <PreviewHostBridge />
+        <PwaRegister />
         <AuthProvider>
           <Outlet />
           <Toaster

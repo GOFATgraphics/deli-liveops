@@ -23,6 +23,6 @@ Set **`CARTO_API_KEY`** on the host (server only). Tiles are fetched at `/api/ti
 
 Set **`PAYSTACK_SECRET_KEY`** (test `sk_test_…` first, then live). Webhook URL in the Paystack dashboard:
 
-`https://deli-liveops-boss-projects-17db575e.vercel.app/api/paystack/webhook`
+`https://deli-liveops.vercel.app/api/paystack/webhook`
 
 Enable card, bank, USSD, and OPay on the Paystack checkout. The sender pays after they accept a price; the 4-digit receiver code appears only when Paystack confirms.
