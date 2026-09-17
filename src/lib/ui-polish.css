@@ -1,0 +1,28 @@
+html { scroll-behavior: smooth; }
+
+html[data-theme='dark'] { color-scheme: dark; }
+
+.ui-polish-button {
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+.ui-polish-button:hover { transform: translateY(-1px); }
+.ui-polish-button:active { transform: translateY(0) scale(0.98); }
+.ui-polish-button:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
