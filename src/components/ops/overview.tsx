@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { MotionCard, Stagger, motion, rise } from "@/components/fm";
 import { getDeskOverview, type DeskOverview } from "@/lib/desk-data";
+import { DeskSkeleton } from "@/components/ui/skeleton";
 import { cn, naira } from "@/lib/utils";
 
 function statusLabel(status: string) {
@@ -18,13 +20,7 @@ export function Overview() {
   }, []);
 
   if (!data) {
-    return (
-      <div className="grid gap-3 p-4 md:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-raised" />
-        ))}
-      </div>
-    );
+    return <DeskSkeleton />;
   }
 
   const money = [
@@ -59,7 +55,12 @@ export function Overview() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 md:px-8 md:py-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <motion.div
+          className="flex flex-wrap items-end justify-between gap-3"
+          initial="hidden"
+          animate="visible"
+          variants={rise}
+        >
           <div>
             <p className="text-xs font-medium tracking-[0.18em] text-subtle uppercase">Kano</p>
             <h1 className="font-display mt-1 text-3xl tracking-tight">Overview</h1>
@@ -68,27 +69,27 @@ export function Overview() {
             Database{" "}
             <span className="font-medium text-fg">{data.source === "neon" ? "Neon" : "preview"}</span>
           </p>
-        </div>
+        </motion.div>
 
-        <section className="grid gap-3 md:grid-cols-3">
+        <Stagger className="grid gap-3 md:grid-cols-3">
           {money.map((stat) => (
-            <article key={stat.label} className="rounded-xl bg-raised p-5 shadow-[var(--shadow-hairline)]">
+            <MotionCard key={stat.label} className="rounded-xl bg-raised p-5 shadow-[var(--shadow-hairline)]">
               <p className="text-xs font-medium tracking-[0.14em] text-subtle uppercase">{stat.label}</p>
               <p className="font-display mt-2 text-3xl tracking-tight tabular-nums">{stat.value}</p>
               <p className="mt-1 text-sm text-muted">{stat.hint}</p>
-            </article>
+            </MotionCard>
           ))}
-        </section>
+        </Stagger>
 
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stagger className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {stats.map((stat) => (
-            <article key={stat.label} className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
+            <MotionCard key={stat.label} className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
               <p className="text-xs font-medium tracking-[0.14em] text-subtle uppercase">{stat.label}</p>
               <p className="font-display mt-2 text-3xl tabular-nums tracking-tight">{stat.value}</p>
               <p className="mt-1 text-sm text-muted">{stat.hint}</p>
-            </article>
+            </MotionCard>
           ))}
-        </section>
+        </Stagger>
 
         <div className="grid gap-8 md:grid-cols-2">
           <section>
@@ -109,7 +110,7 @@ export function Overview() {
                     <Link
                       to="/admin/jobs"
                       search={{ job: pay.jobId }}
-                      className="flex flex-col gap-1 px-4 py-3 hover:bg-fg/4 md:flex-row md:items-center md:justify-between"
+                      className="flex flex-col gap-1 px-4 py-3 transition-colors duration-150 hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40 focus-visible:outline-none md:flex-row md:items-center md:justify-between"
                     >
                       <div className="min-w-0">
                         <p className="font-mono text-sm">{pay.publicId}</p>
@@ -129,7 +130,7 @@ export function Overview() {
           <section>
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <h2 className="font-display text-xl tracking-tight">Senders</h2>
-              <Link to="/admin/senders" className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline">
+              <Link to="/admin/senders" className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-ring/40">
                 All senders
               </Link>
             </div>
@@ -143,7 +144,7 @@ export function Overview() {
                   <li key={sender.userId} className={cn(index > 0 && "border-t border-border")}>
                     <Link
                       to="/admin/senders"
-                      className="flex flex-col gap-1 px-4 py-3 hover:bg-fg/4 md:flex-row md:items-center md:justify-between"
+                      className="flex flex-col gap-1 px-4 py-3 transition-colors duration-150 hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40 focus-visible:outline-none md:flex-row md:items-center md:justify-between"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{sender.name || "Unnamed"}</p>
@@ -167,7 +168,7 @@ export function Overview() {
             <Link
               to="/admin/jobs"
               search={{ job: undefined }}
-              className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+              className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               Open jobs
             </Link>
@@ -183,7 +184,7 @@ export function Overview() {
                   <Link
                     to="/admin/jobs"
                     search={{ job: job.id }}
-                    className="flex flex-col gap-1 px-4 py-3 hover:bg-fg/4 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-1 px-4 py-3 transition-colors duration-150 hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40 focus-visible:outline-none md:flex-row md:items-center md:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="font-mono text-sm">{job.publicId}</p>

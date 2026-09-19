@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { MotionItem, MotionList } from "@/components/fm";
+import { DeskSkeleton } from "@/components/ui/skeleton";
 import { getDeskRecords, type DeskRecordTables } from "@/lib/desk-data";
 
 export function Records() {
@@ -12,7 +14,7 @@ export function Records() {
   }, []);
 
   if (!data) {
-    return <div className="m-4 h-40 animate-pulse rounded-xl bg-raised" />;
+    return <DeskSkeleton />;
   }
 
   return (
@@ -28,17 +30,17 @@ export function Records() {
 
         <section>
           <h2 className="font-display text-xl tracking-tight">Tables</h2>
-          <ul className="mt-3 overflow-hidden rounded-xl bg-raised shadow-[var(--shadow-hairline)]">
+          <MotionList className="mt-3 overflow-hidden rounded-xl bg-raised shadow-[var(--shadow-hairline)]" fast>
             {data.tables.map((table, index) => (
-              <li
+              <MotionItem
                 key={table.name}
                 className={`flex items-center justify-between px-4 py-3 text-sm ${index > 0 ? "border-t border-border" : ""}`}
               >
                 <span className="font-mono">{table.name}</span>
                 <span className="tabular-nums text-muted">{table.rows}</span>
-              </li>
+              </MotionItem>
             ))}
-          </ul>
+          </MotionList>
         </section>
 
         <section>
@@ -52,7 +54,7 @@ export function Records() {
               {data.senders.map((sender, index) => (
                 <li
                   key={sender.userId}
-                  className={`flex flex-col gap-0.5 px-4 py-3 md:flex-row md:items-center md:justify-between ${index > 0 ? "border-t border-border" : ""}`}
+                  className={`flex flex-col gap-0.5 px-4 py-3 transition-colors duration-150 hover:bg-fg/4 md:flex-row md:items-center md:justify-between ${index > 0 ? "border-t border-border" : ""}`}
                 >
                   <div>
                     <p className="text-sm font-medium">{sender.name || "Unnamed"}</p>
@@ -71,7 +73,7 @@ export function Records() {
             {data.operators.map((op, index) => (
               <li
                 key={op.userId}
-                className={`px-4 py-3 ${index > 0 ? "border-t border-border" : ""}`}
+                className={`px-4 py-3 transition-colors duration-150 hover:bg-fg/4 ${index > 0 ? "border-t border-border" : ""}`}
               >
                 <p className="font-mono text-sm">{op.userId}</p>
                 <p className="text-xs text-subtle">Staff desk</p>

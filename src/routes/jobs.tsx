@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { JobsBoard } from "@/components/send/jobs-board";
+import { SenderLayout } from "@/components/send/sender-shell";
 
-export const Route = createFileRoute("/_send/")({
+export const Route = createFileRoute("/jobs")({
   component: JobsHome,
   head: () => ({
     meta: [{ title: "Deli — Jobs" }],
@@ -9,5 +10,9 @@ export const Route = createFileRoute("/_send/")({
 });
 
 function JobsHome() {
-  return <JobsBoard />;
+  return (
+    <SenderLayout>
+      <JobsBoard />
+    </SenderLayout>
+  );
 }

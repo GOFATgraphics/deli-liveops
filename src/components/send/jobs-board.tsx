@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DeliveryTrack } from "@/components/send/delivery-track";
+import { MotionItem, MotionList } from "@/components/fm";
 import { RouteMap } from "@/components/send/route-map";
 import { useSenderSession } from "@/components/send/sender-shell";
 import { Button } from "@/components/ui/button";
@@ -49,13 +50,13 @@ export function JobsBoard({ openJobId }: { openJobId?: string }) {
               </Button>
             </div>
           ) : (
-            <ul className="flex flex-col gap-1">
+            <MotionList className="flex flex-col gap-1">
               {ordered.map((job) => (
-                <li key={job.id}>
+                <MotionItem key={job.id}>
                   <JobCard job={job} selected={job.id === openJobId} />
-                </li>
+                </MotionItem>
               ))}
-            </ul>
+            </MotionList>
           )}
         </div>
       </aside>
@@ -88,6 +89,7 @@ function JobCard({ job, selected }: { job: SenderJob; selected: boolean }) {
       params={{ jobId: job.id }}
       className={cn(
         "flex w-full flex-col gap-1 rounded-lg px-3 py-3",
+        "transition-[background-color,box-shadow,transform] duration-150 ease-out",
         selected ? "bg-raised shadow-[var(--shadow-hairline)]" : "hover:bg-fg/4",
       )}
     >

@@ -2,6 +2,8 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Banknote, Bike, ClipboardList, Database, LayoutDashboard, Map, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
+import { OpsTransition } from "@/components/fm";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserButton } from "@/lib/auth/gates";
 import { getDeskNavCounts } from "@/lib/desk-data";
 import { usePartners } from "@/lib/store";
@@ -75,9 +77,16 @@ export function DeskShell() {
   }, []);
 
   const title = pageTitle(pathname);
+  const onJobs = pathname.startsWith("/admin/jobs");
 
   return (
     <div className="flex h-dvh max-w-[100vw] flex-col overflow-x-hidden bg-bg md:flex-row">
+      <a
+        href="#ops-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-raised focus:px-3 focus:py-2 focus:text-fg focus:shadow-[var(--shadow-card)]"
+      >
+        Skip to desk
+      </a>
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-raised md:flex">
         <div className="flex items-center gap-3 border-b border-border px-4 py-4">
           <BrandMark className="size-9" />
@@ -109,10 +118,13 @@ export function DeskShell() {
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "relative flex h-10 items-center gap-2.5 rounded-md px-3 text-sm font-medium",
+                        "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:origin-center before:rounded-full before:bg-fg",
+                        "before:transition-transform before:duration-200 before:ease-[cubic-bezier(0.22,1,0.36,1)]",
                         "transition-[background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                        "focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
                         active
-                          ? "bg-fg/[0.06] text-fg before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-fg"
-                          : "text-muted hover:bg-fg/[0.04] hover:text-fg",
+                          ? "bg-fg/[0.06] text-fg before:scale-y-100"
+                          : "text-muted before:scale-y-0 hover:bg-fg/[0.04] hover:text-fg",
                       )}
                     >
                       <item.icon className="size-4 shrink-0" />
@@ -137,11 +149,21 @@ export function DeskShell() {
               ) : null}
             </span>
           </p>
-          <UserButton />
+          {onJobs ? (
+            <p className="mb-3 px-1 font-mono text-[10px] tracking-wide text-subtle uppercase">
+              J/K · N new · Esc
+            </p>
+          ) : null}
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <div className="min-w-0 flex-1">
+              <UserButton />
+            </div>
+          </div>
         </div>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div id="ops-main" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col outline-none">
         <header className="flex items-center justify-between gap-3 border-b border-border bg-raised/90 px-4 py-2.5 backdrop-blur-md md:hidden">
           <div className="flex min-w-0 items-center gap-2.5">
             <BrandMark className="size-8" />
@@ -152,11 +174,17 @@ export function DeskShell() {
               </p>
             </div>
           </div>
-          <UserButton compact />
+          <div className="flex shrink-0 items-center">
+            <ThemeToggle />
+            <UserButton compact />
+          </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
+        <OpsTransition
+          id={pathname}
+          className="min-h-0 flex-1 overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0"
+        >
           <Outlet />
-        </div>
+        </OpsTransition>
       </div>
 
       <nav
@@ -177,12 +205,18 @@ export function DeskShell() {
                 className={cn(
                   "relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
                   "transition-colors duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40",
                   active ? "text-fg" : "text-subtle",
                 )}
               >
-                {active ? (
-                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-fg" aria-hidden />
-                ) : null}
+                <span
+                  className={cn(
+                    "absolute inset-x-4 top-0 h-0.5 origin-center rounded-full bg-fg",
+                    "transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    active ? "scale-x-100" : "scale-x-0",
+                  )}
+                  aria-hidden
+                />
                 <span className="relative">
                   <item.icon className="size-[18px]" />
                   {jobs && counts.openJobs > 0 ? (

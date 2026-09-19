@@ -1,9 +1,11 @@
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, MapPinned, Plus, User } from "lucide-react";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BrandMark } from "@/components/brand-mark";
+import { PageTransition } from "@/components/fm";
 import { PhoneGate } from "@/components/send/phone-gate";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { RedirectToSignIn, SignInGate, UserButton } from "@/lib/auth/gates";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { getMySender, listMyJobs, type SenderJob, type SenderProfile } from "@/lib/sender-data";
@@ -11,14 +13,14 @@ import { needsSenderAction } from "@/lib/sender-status";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/", label: "Jobs", icon: ClipboardList, exact: true },
+  { to: "/jobs", label: "Jobs", icon: ClipboardList, exact: true },
   { to: "/request", label: "Request", icon: Plus, exact: false },
   { to: "/track", label: "Track", icon: MapPinned, exact: false },
   { to: "/account", label: "Account", icon: User, exact: false },
 ] as const;
 
 function navActive(pathname: string, to: string, exact: boolean) {
-  if (exact) return pathname === "/" || pathname.startsWith("/job/");
+  if (exact) return pathname === "/jobs" || pathname.startsWith("/job/");
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
@@ -42,11 +44,11 @@ export function useSenderSession() {
   return value;
 }
 
-export function SenderLayout() {
+export function SenderLayout({ children }: { children: ReactNode }) {
   return (
     <SignInGate fallback={<RedirectToSignIn />}>
       <SenderSession>
-        <SenderChrome />
+        <SenderChrome>{children}</SenderChrome>
       </SenderSession>
     </SignInGate>
   );
@@ -86,7 +88,7 @@ function JobsBadge({ count }: { count: number }) {
   );
 }
 
-function SenderChrome() {
+function SenderChrome({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const user = useCurrentUser();
   const { profile, jobs, refresh } = useSenderSession();
@@ -108,7 +110,7 @@ function SenderChrome() {
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4" aria-label="Sender">
           {NAV.map((item) => {
             const active = navActive(pathname, item.to, item.exact);
-            const jobsItem = item.to === "/";
+            const jobsItem = item.to === "/jobs";
             return (
               <Link
                 key={item.to}
@@ -116,10 +118,12 @@ function SenderChrome() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex h-10 items-center gap-2.5 rounded-md px-3 text-sm font-medium",
+                  "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:origin-center before:rounded-full before:bg-fg",
+                  "before:transition-transform before:duration-200 before:ease-[cubic-bezier(0.22,1,0.36,1)]",
                   "transition-[background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
                   active
-                    ? "bg-fg/[0.06] text-fg before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-fg"
-                    : "text-muted hover:bg-fg/[0.04] hover:text-fg",
+                    ? "bg-fg/[0.06] text-fg before:scale-y-100"
+                    : "text-muted before:scale-y-0 hover:bg-fg/[0.04] hover:text-fg",
                 )}
               >
                 <item.icon className="size-4 shrink-0" />
@@ -142,7 +146,12 @@ function SenderChrome() {
               {actionCount > 0 ? <span className="text-subtle"> · {actionCount} waiting</span> : null}
             </p>
           )}
-          <UserButton />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <div className="min-w-0 flex-1">
+              <UserButton />
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -159,9 +168,15 @@ function SenderChrome() {
               <p className="mt-0.5 text-[11px] font-medium tracking-[0.16em] text-subtle uppercase">{title}</p>
             </div>
           </div>
-          <UserButton compact />
+          <div className="flex shrink-0 items-center">
+            <ThemeToggle />
+            <UserButton compact />
+          </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
+        <PageTransition
+          id={pathname}
+          className="min-h-0 flex-1 overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0"
+        >
           {profile === undefined ? (
             <div className="grid h-full gap-3 p-4 md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
               <div className="h-40 animate-pulse rounded-xl bg-raised" />
@@ -178,9 +193,9 @@ function SenderChrome() {
               </div>
             </div>
           ) : (
-            <Outlet />
+            children
           )}
-        </div>
+        </PageTransition>
       </div>
 
       <nav
@@ -190,7 +205,7 @@ function SenderChrome() {
         <div className="flex">
           {NAV.map((item) => {
             const active = navActive(pathname, item.to, item.exact);
-            const jobsItem = item.to === "/";
+            const jobsItem = item.to === "/jobs";
             return (
               <Link
                 key={item.to}
@@ -202,7 +217,14 @@ function SenderChrome() {
                   active ? "text-fg" : "text-subtle",
                 )}
               >
-                {active ? <span className="absolute inset-x-8 top-0 h-0.5 rounded-full bg-fg" aria-hidden /> : null}
+                <span
+                  className={cn(
+                    "absolute inset-x-8 top-0 h-0.5 origin-center rounded-full bg-fg",
+                    "transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    active ? "scale-x-100" : "scale-x-0",
+                  )}
+                  aria-hidden
+                />
                 <span className="relative">
                   <item.icon className="size-[18px]" />
                   {jobsItem && actionCount > 0 ? (

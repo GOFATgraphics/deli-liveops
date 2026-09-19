@@ -47,6 +47,7 @@ export function PartnerList({ partners, selectedId, query, onQuery, onSelect }: 
                   onClick={() => onSelect(partner.id)}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors duration-150",
+                    "focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
                     selectedId === partner.id ? "bg-accent text-accent-fg" : "hover:bg-fg/5",
                   )}
                 >

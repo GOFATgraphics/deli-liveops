@@ -1,8 +1,10 @@
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { AnimatePresence, MotionItem, MotionList, OpsPanel, motion } from "@/components/fm";
 import { PlaceSearch } from "@/components/ops/place-search";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,16 +44,23 @@ function money(n: number) {
 export function JobBoard({ openJobId }: { openJobId?: string }) {
   const fleets = usePartners((s) => s.partners);
   const navigate = useNavigate({ from: "/admin/jobs" });
-  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [jobs, setJobs] = useState<JobRow[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(openJobId ?? null);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [events, setEvents] = useState<JobEventRow[]>([]);
   const [composing, setComposing] = useState(false);
+  const [filter, setFilter] = useState("");
 
   function openJob(id: string) {
     setComposing(false);
     setSelectedId(id);
     void navigate({ search: { job: id }, replace: true });
+  }
+
+  function closePanel() {
+    setComposing(false);
+    setSelectedId(null);
+    void navigate({ search: { job: undefined }, replace: true });
   }
 
   async function refresh() {
@@ -71,7 +80,52 @@ export function JobBoard({ openJobId }: { openJobId?: string }) {
     }
   }, [openJobId]);
 
-  const selected = jobs.find((job) => job.id === selectedId) ?? null;
+  const selected = (jobs ?? []).find((job) => job.id === selectedId) ?? null;
+  const visible = useMemo(() => {
+    const list = jobs ?? [];
+    const q = filter.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (job) =>
+        job.publicId.toLowerCase().includes(q) ||
+        job.pickupLandmark.toLowerCase().includes(q) ||
+        job.dropoffLandmark.toLowerCase().includes(q) ||
+        job.status.replaceAll("_", " ").includes(q) ||
+        job.senderName.toLowerCase().includes(q),
+    );
+  }, [jobs, filter]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (event.key === "Escape") {
+        closePanel();
+      }
+      if (event.key === "n" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        setComposing(true);
+      }
+      if (event.key === "?" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        toast.message("J/K move · N new job · Esc close");
+      }
+      if (event.key === "ArrowDown" || event.key === "j") {
+        event.preventDefault();
+        const i = visible.findIndex((job) => job.id === selectedId);
+        const next = visible[Math.min(visible.length - 1, Math.max(0, i + 1))];
+        if (next) openJob(next.id);
+      }
+      if (event.key === "ArrowUp" || event.key === "k") {
+        event.preventDefault();
+        const i = visible.findIndex((job) => job.id === selectedId);
+        const prev = visible[Math.max(0, (i < 0 ? 0 : i) - 1)];
+        if (prev) openJob(prev.id);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, selectedId, navigate]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -97,66 +151,112 @@ export function JobBoard({ openJobId }: { openJobId?: string }) {
             New job
           </Button>
         </div>
+        <div className="px-3 pb-2">
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter jobs"
+            aria-label="Filter jobs"
+            className="h-9"
+          />
+          <p className="mt-2 px-1 font-mono text-[10px] tracking-wide text-subtle uppercase md:hidden">
+            J/K · N new · Esc
+          </p>
+        </div>
         <div className="min-h-0 overflow-y-auto px-2 pb-4">
-          {jobs.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-muted">No jobs yet. File one from the desk.</p>
+          {jobs === null ? (
+            <div className="flex flex-col gap-2 px-1" aria-busy="true" aria-label="Loading jobs">
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+            </div>
+          ) : visible.length === 0 ? (
+            <p className="px-3 py-10 text-center text-sm text-muted">
+              {jobs.length === 0 ? "No jobs yet. File one from the desk." : "No jobs match that filter."}
+            </p>
           ) : (
-            <ul className="flex flex-col gap-1">
-              {jobs.map((job) => (
-                <li key={job.id}>
+            <MotionList className="flex flex-col gap-1" fast>
+              {visible.map((job) => (
+                <MotionItem key={job.id}>
                   <button
                     type="button"
                     onClick={() => openJob(job.id)}
+                    aria-current={selectedId === job.id ? "true" : undefined}
                     className={cn(
                       "flex w-full flex-col gap-1 rounded-lg px-3 py-3 text-left",
+                      "transition-[background-color,box-shadow] duration-150",
+                      "focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
                       selectedId === job.id ? "bg-raised shadow-[var(--shadow-hairline)]" : "hover:bg-fg/4",
                     )}
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="font-mono text-sm">{job.publicId}</span>
-                      <span className="text-xs tracking-wide text-subtle uppercase">{job.status.replaceAll("_", " ")}</span>
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.span
+                          key={job.status}
+                          className="text-xs tracking-wide text-subtle uppercase"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          {job.status.replaceAll("_", " ")}
+                        </motion.span>
+                      </AnimatePresence>
                     </span>
                     <span className="text-sm text-muted">
                       {job.pickupLandmark} → {job.dropoffLandmark}
                     </span>
                   </button>
-                </li>
+                </MotionItem>
               ))}
-            </ul>
+            </MotionList>
           )}
         </div>
       </aside>
 
       <section className="min-h-0 overflow-y-auto bg-raised">
-        {composing ? (
-          <NewJobForm
-            onCancel={() => setComposing(false)}
-            onCreated={async (job) => {
-              await refresh();
-              openJob(job.id);
-            }}
-          />
-        ) : selected ? (
-          <JobDetail
-            job={selected}
-            quotes={quotes}
-            events={events}
-            fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status, phone: f.phone }))}
-            onChanged={async () => {
-              const next = await refresh();
-              const current = next.find((job) => job.id === selected.id);
-              if (current) setSelectedId(current.id);
-              const [nextQuotes, nextEvents] = await Promise.all([
-                listQuotes({ data: { jobId: selected.id } }),
-                listJobEvents({ data: { jobId: selected.id } }),
-              ]);
-              setQuotes(nextQuotes);
-              setEvents(nextEvents);
-            }}
-          />
-        ) : (
-          <p className="p-8 text-sm text-muted">Select a job or file a new request.</p>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {composing ? (
+            <OpsPanel key="compose" id="compose">
+              <NewJobForm
+                onCancel={() => setComposing(false)}
+                onCreated={async (job) => {
+                  await refresh();
+                  openJob(job.id);
+                }}
+              />
+            </OpsPanel>
+          ) : selected ? (
+            <OpsPanel key={selected.id} id={selected.id}>
+              <JobDetail
+                job={selected}
+                quotes={quotes}
+                events={events}
+                fleets={fleets.map((f) => ({ id: f.id, name: f.name, status: f.status, phone: f.phone }))}
+                onClose={closePanel}
+                onChanged={async () => {
+                  const next = await refresh();
+                  const current = next.find((job) => job.id === selected.id);
+                  if (current) setSelectedId(current.id);
+                  const [nextQuotes, nextEvents] = await Promise.all([
+                    listQuotes({ data: { jobId: selected.id } }),
+                    listJobEvents({ data: { jobId: selected.id } }),
+                  ]);
+                  setQuotes(nextQuotes);
+                  setEvents(nextEvents);
+                }}
+              />
+            </OpsPanel>
+          ) : (
+            <OpsPanel key="empty" id="empty">
+              <p className="p-8 text-sm text-muted">
+                Select a job or file a new request. J/K to move, N for new, Esc to close.
+              </p>
+            </OpsPanel>
+          )}
+        </AnimatePresence>
       </section>
     </div>
   );
@@ -287,12 +387,14 @@ function JobDetail({
   events,
   fleets,
   onChanged,
+  onClose,
 }: {
   job: JobRow;
   quotes: QuoteRow[];
   events: JobEventRow[];
   fleets: { id: string; name: string; status: string; phone: string }[];
   onChanged: () => Promise<void>;
+  onClose: () => void;
 }) {
   const [fleetId, setFleetId] = useState(fleets.find((f) => f.status === "active")?.id ?? "");
   const [total, setTotal] = useState("3500");
@@ -343,15 +445,33 @@ function JobDetail({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 md:p-6">
-      <div>
-        <p className="font-mono text-sm text-muted">{job.publicId}</p>
-        <h2 className="font-display mt-1 text-2xl tracking-tight">
-          {job.pickupLandmark} → {job.dropoffLandmark}
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          {job.distanceKm} km · {job.goods} · {job.status.replaceAll("_", " ")}
-        </p>
-        {job.constraints ? <p className="mt-1 text-sm text-muted">{job.constraints}</p> : null}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-sm text-muted">{job.publicId}</p>
+          <h2 className="font-display mt-1 text-2xl tracking-tight">
+            {job.pickupLandmark} → {job.dropoffLandmark}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {job.distanceKm} km · {job.goods} ·{" "}
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={job.status}
+                className="inline-block uppercase"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                aria-live="polite"
+              >
+                {job.status.replaceAll("_", " ")}
+              </motion.span>
+            </AnimatePresence>
+          </p>
+          {job.constraints ? <p className="mt-1 text-sm text-muted">{job.constraints}</p> : null}
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          Close
+        </Button>
       </div>
 
       <div className="rounded-xl bg-bg p-4">
@@ -359,14 +479,14 @@ function JobDetail({
         <p className="mt-2 text-sm font-medium">{job.senderName}</p>
         <p className="mt-1 font-mono text-sm">{job.senderPhone}</p>
         <div className="mt-3 flex gap-2">
-          <a href={`tel:${job.senderPhone.replace(/\s/g, "")}`} className="text-sm underline-offset-4 hover:underline">
+          <a href={`tel:${job.senderPhone.replace(/\s/g, "")}`} className="text-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/40">
             Call
           </a>
           <a
             href={waLink(job.senderPhone)}
             target="_blank"
             rel="noreferrer"
-            className="text-sm underline-offset-4 hover:underline"
+            className="text-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             WhatsApp
           </a>
@@ -408,7 +528,7 @@ function JobDetail({
                 <select
                   value={fleetId}
                   onChange={(e) => setFleetId(e.target.value)}
-                  className="h-11 rounded-md bg-raised px-3 text-sm shadow-[var(--shadow-hairline)]"
+                  className="h-11 rounded-md bg-raised px-3 text-sm shadow-[var(--shadow-hairline)] focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                   {fleets
                     .filter((f) => f.status === "active")

@@ -63,7 +63,7 @@ function PayReturn() {
         ) : null}
         {state === "no" ? <p className="mt-6 text-sm text-muted">{error}</p> : null}
         <p className="mt-8">
-          <Link to="/" className="text-sm underline-offset-4 hover:underline">
+          <Link to="/jobs" className="text-sm underline-offset-4 hover:underline">
             Back to your jobs
           </Link>
         </p>

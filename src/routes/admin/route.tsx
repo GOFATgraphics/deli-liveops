@@ -51,7 +51,7 @@ function AdminGate({ children }: { children: ReactNode }) {
           <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-subtle uppercase">Admin</p>
           <p className="mt-6 text-sm text-muted">This desk is for Deli staff only.</p>
           <p className="mt-6">
-            <Link to="/" className="text-sm underline-offset-4 hover:underline">
+            <Link to="/jobs" className="text-sm underline-offset-4 hover:underline">
               Back to your jobs
             </Link>
           </p>

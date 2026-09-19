@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MotionCard, Stagger, motion } from "@/components/fm";
+import { DeskSkeleton } from "@/components/ui/skeleton";
 import { getDeskPayments, type DeskPayment } from "@/lib/desk-data";
 import { cn, naira } from "@/lib/utils";
 
@@ -75,7 +77,7 @@ export function PaymentsDesk() {
   }, [filtered]);
 
   if (!rows) {
-    return <div className="m-4 h-40 animate-pulse rounded-xl bg-raised" />;
+    return <DeskSkeleton />;
   }
 
   return (
@@ -104,12 +106,12 @@ export function PaymentsDesk() {
           />
         </div>
 
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stagger className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Transactions" value={String(totals.count)} hint={`${totals.paid} paid`} />
           <Stat label="Collected" value={naira(totals.collected)} hint={naira(totals.waiting) + " pending"} />
           <Stat label="Deli take" value={naira(totals.take)} hint="Fee on paid jobs" />
           <Stat label="Fleet due" value={naira(totals.fleet)} hint="Payout on paid jobs" />
-        </section>
+        </Stagger>
 
         {filtered.length === 0 ? (
           <p className="rounded-xl bg-raised px-4 py-10 text-center text-sm text-muted shadow-[var(--shadow-hairline)]">
@@ -118,11 +120,11 @@ export function PaymentsDesk() {
         ) : (
           <ul className="overflow-hidden rounded-xl bg-raised shadow-[var(--shadow-hairline)]">
             {filtered.map((pay, index) => (
-              <li key={pay.id} className={cn(index > 0 && "border-t border-border")}>
+              <li key={pay.id} className={cn("transition-colors duration-150", index > 0 && "border-t border-border")}>
                 <Link
                   to="/admin/jobs"
                   search={{ job: pay.jobId }}
-                  className="flex flex-col gap-2 px-4 py-3 hover:bg-fg/4 md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-fg/4 focus-visible:bg-fg/4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40 focus-visible:outline-none md:flex-row md:items-center md:justify-between"
                 >
                   <div className="min-w-0">
                     <p className="font-mono text-sm">{pay.publicId}</p>
@@ -167,17 +169,20 @@ function ChipRow<T extends string>({
         {items.map((item) => {
           const active = item.id === value;
           return (
-            <button
+            <motion.button
               key={item.id}
               type="button"
               onClick={() => onChange(item.id)}
+              whileTap={{ scale: 0.96 }}
               className={cn(
                 "h-11 rounded-full px-3 text-sm",
-                active ? "bg-fg text-accent-fg" : "bg-raised text-muted shadow-[var(--shadow-hairline)]",
+                "transition-[background-color,color,box-shadow] duration-150 ease-out",
+                "focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
+                active ? "bg-fg text-accent-fg" : "bg-raised text-muted shadow-[var(--shadow-hairline)] hover:text-fg",
               )}
             >
               {item.label}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -187,10 +192,10 @@ function ChipRow<T extends string>({
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
+    <MotionCard className="rounded-xl bg-raised p-4 shadow-[var(--shadow-hairline)]">
       <p className="text-xs font-medium tracking-[0.14em] text-subtle uppercase">{label}</p>
       <p className="font-display mt-2 text-2xl tracking-tight tabular-nums">{value}</p>
       <p className="mt-1 text-sm text-muted">{hint}</p>
-    </article>
+    </MotionCard>
   );
 }

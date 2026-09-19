@@ -1,6 +1,6 @@
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
 
-/** Which database backend is active. */
+/** Which database backend is active. Contact messages: 0008. */
 export type DbSource = "neon" | "pglite";
 
 function firstEnv(...keys: string[]) {

@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequestForm } from "@/components/send/request-form";
+import { SenderLayout } from "@/components/send/sender-shell";
 
-export const Route = createFileRoute("/_send/request")({
+export const Route = createFileRoute("/request")({
   component: RequestPage,
   head: () => ({
     meta: [{ title: "Deli — New request" }],
@@ -9,5 +10,9 @@ export const Route = createFileRoute("/_send/request")({
 });
 
 function RequestPage() {
-  return <RequestForm />;
+  return (
+    <SenderLayout>
+      <RequestForm />
+    </SenderLayout>
+  );
 }

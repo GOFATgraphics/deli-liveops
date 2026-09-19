@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AccountPanel } from "@/components/send/account-panel";
+import { SenderLayout } from "@/components/send/sender-shell";
 
-export const Route = createFileRoute("/_send/account")({
+export const Route = createFileRoute("/account")({
   component: AccountPage,
   head: () => ({
     meta: [{ title: "Deli — Account" }],
@@ -9,5 +10,9 @@ export const Route = createFileRoute("/_send/account")({
 });
 
 function AccountPage() {
-  return <AccountPanel />;
+  return (
+    <SenderLayout>
+      <AccountPanel />
+    </SenderLayout>
+  );
 }

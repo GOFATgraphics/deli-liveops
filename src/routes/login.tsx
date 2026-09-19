@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandMark } from "@/components/brand-mark";
+import { Stagger, motion, rise } from "@/components/fm";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { saveMySender } from "@/lib/sender-data";
 import { emailLooksValid } from "@/lib/utils";
 
 function parseNext(value: unknown) {
   if (value === "/admin" || (typeof value === "string" && value.startsWith("/admin/"))) return "/admin" as const;
-  if (value === "/request" || value === "/account" || value === "/track") return value;
+  if (value === "/request" || value === "/account" || value === "/track" || value === "/jobs") return value;
   if (typeof value === "string" && value.startsWith("/job/")) return value;
-  return "/" as const;
+  return "/jobs" as const;
 }
 
 export const Route = createFileRoute("/login")({
@@ -96,24 +98,27 @@ function Login() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-3">
+    <main className="relative grid min-h-dvh place-items-center bg-bg px-4 py-10">
+      <div className="absolute top-3 right-3">
+        <ThemeToggle />
+      </div>
+      <Stagger className="w-full max-w-sm">
+        <motion.div className="flex items-center gap-3" variants={rise}>
           <BrandMark className="size-10" />
           <div>
             <p className="font-display text-2xl leading-none tracking-tight">Deli</p>
             <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-subtle uppercase">Sender</p>
           </div>
-        </div>
-        <h1 className="font-display mt-8 text-2xl tracking-tight">
+        </motion.div>
+        <motion.h1 className="font-display mt-8 text-2xl tracking-tight" variants={rise}>
           {mode === "in" ? "Sign in" : "Create an account"}
-        </h1>
-        <p className="mt-2 text-sm text-muted">
+        </motion.h1>
+        <motion.p className="mt-2 text-sm text-muted" variants={rise}>
           Email and password to sign in. Your phone is the number we call about the job.
-        </p>
+        </motion.p>
 
         {authEnabled ? (
-          <form className="mt-6 flex flex-col gap-3" onSubmit={(event) => void submit(event)}>
+          <motion.form className="mt-6 flex flex-col gap-3" variants={rise} onSubmit={(event) => void submit(event)}>
             {mode === "up" ? (
               <>
                 <Field label="Business name">
@@ -177,13 +182,15 @@ function Login() {
             <Button type="submit" disabled={busy || emailState === false} className="mt-1 w-full">
               {busy ? "Working…" : mode === "in" ? "Sign in" : "Create account"}
             </Button>
-          </form>
+          </motion.form>
         ) : (
-          <p className="mt-6 text-sm text-muted">Sign-in is disabled.</p>
+          <motion.p className="mt-6 text-sm text-muted" variants={rise}>
+            Sign-in is disabled.
+          </motion.p>
         )}
 
         {authEnabled ? (
-          <>
+          <motion.div variants={rise}>
             <p className="mt-4 text-center text-sm text-muted">
               {mode === "in" ? (
                 <button type="button" className="underline-offset-4 hover:underline" onClick={() => setMode("up")}>
@@ -215,9 +222,9 @@ function Login() {
                 </Button>
               ))}
             </div>
-          </>
+          </motion.div>
         ) : null}
-      </div>
+      </Stagger>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AnimatePresence, OpsPanel } from "@/components/fm";
 import { HubMap } from "@/components/ops/hub-map";
 import { PartnerForm } from "@/components/ops/partner-form";
 import { PartnerList } from "@/components/ops/partner-list";
@@ -171,7 +172,11 @@ export function FleetDesk() {
         </section>
         {inspector ? (
           <aside className="order-3 flex min-h-0 flex-col overflow-hidden border-t border-border bg-raised md:border-t-0 md:border-l">
-            <div className="min-h-0 flex-1 overflow-y-auto">{inspector}</div>
+            <AnimatePresence mode="wait" initial={false}>
+              <OpsPanel key={panel.kind === "form" ? `form-${panel.id}` : panel.kind === "preview" ? panel.id : "none"} id="fleet-panel" className="min-h-0 flex-1 overflow-y-auto">
+                {inspector}
+              </OpsPanel>
+            </AnimatePresence>
           </aside>
         ) : null}
       </div>

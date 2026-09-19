@@ -9,16 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SendRouteRouteImport } from './routes/_send/route'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OpsRouteImport } from './routes/ops'
 import { Route as PayRouteImport } from './routes/pay'
+import { Route as RequestRouteImport } from './routes/request'
 import { Route as SendRouteImport } from './routes/send'
-import { Route as SendIndexRouteImport } from './routes/_send/index'
-import { Route as SendAccountRouteImport } from './routes/_send/account'
-import { Route as SendRequestRouteImport } from './routes/_send/request'
-import { Route as SendTrackRouteImport } from './routes/_send/track'
+import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFleetsRouteImport } from './routes/admin/fleets'
 import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
@@ -27,17 +28,33 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminRecordsRouteImport } from './routes/admin/records'
 import { Route as AdminSendersRouteImport } from './routes/admin/senders'
 import { Route as ApiTilesRouteImport } from './routes/api/tiles'
-import { Route as SendJobJobIdRouteImport } from './routes/_send/job.$jobId'
+import { Route as JobJobIdRouteImport } from './routes/job.$jobId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiPaystackWebhookRouteImport } from './routes/api/paystack/webhook'
 
-const SendRouteRoute = SendRouteRouteImport.update({
-  id: '/_send',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -55,30 +72,20 @@ const PayRoute = PayRouteImport.update({
   path: '/pay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RequestRoute = RequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SendRoute = SendRouteImport.update({
   id: '/send',
   path: '/send',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SendIndexRoute = SendIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => SendRouteRoute,
-} as any)
-const SendAccountRoute = SendAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => SendRouteRoute,
-} as any)
-const SendRequestRoute = SendRequestRouteImport.update({
-  id: '/request',
-  path: '/request',
-  getParentRoute: () => SendRouteRoute,
-} as any)
-const SendTrackRoute = SendTrackRouteImport.update({
+const TrackRoute = TrackRouteImport.update({
   id: '/track',
   path: '/track',
-  getParentRoute: () => SendRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -120,10 +127,10 @@ const ApiTilesRoute = ApiTilesRouteImport.update({
   path: '/api/tiles',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SendJobJobIdRoute = SendJobJobIdRouteImport.update({
+const JobJobIdRoute = JobJobIdRouteImport.update({
   id: '/job/$jobId',
   path: '/job/$jobId',
-  getParentRoute: () => SendRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -137,15 +144,17 @@ const ApiPaystackWebhookRoute = ApiPaystackWebhookRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof SendIndexRoute
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/account': typeof AccountRoute
+  '/contact': typeof ContactRoute
+  '/jobs': typeof JobsRoute
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/pay': typeof PayRoute
+  '/request': typeof RequestRoute
   '/send': typeof SendRoute
-  '/account': typeof SendAccountRoute
-  '/request': typeof SendRequestRoute
-  '/track': typeof SendTrackRoute
+  '/track': typeof TrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -153,19 +162,22 @@ export interface FileRoutesByFullPath {
   '/admin/records': typeof AdminRecordsRoute
   '/admin/senders': typeof AdminSendersRoute
   '/api/tiles': typeof ApiTilesRoute
+  '/job/$jobId': typeof JobJobIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/job/$jobId': typeof SendJobJobIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/contact': typeof ContactRoute
+  '/jobs': typeof JobsRoute
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/pay': typeof PayRoute
+  '/request': typeof RequestRoute
   '/send': typeof SendRoute
-  '/account': typeof SendAccountRoute
-  '/request': typeof SendRequestRoute
-  '/track': typeof SendTrackRoute
+  '/track': typeof TrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -173,23 +185,24 @@ export interface FileRoutesByTo {
   '/admin/records': typeof AdminRecordsRoute
   '/admin/senders': typeof AdminSendersRoute
   '/api/tiles': typeof ApiTilesRoute
-  '/': typeof SendIndexRoute
+  '/job/$jobId': typeof JobJobIdRoute
   '/admin': typeof AdminIndexRoute
-  '/job/$jobId': typeof SendJobJobIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_send': typeof SendRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/account': typeof AccountRoute
+  '/contact': typeof ContactRoute
+  '/jobs': typeof JobsRoute
   '/login': typeof LoginRoute
   '/ops': typeof OpsRoute
   '/pay': typeof PayRoute
+  '/request': typeof RequestRoute
   '/send': typeof SendRoute
-  '/_send/account': typeof SendAccountRoute
-  '/_send/request': typeof SendRequestRoute
-  '/_send/track': typeof SendTrackRoute
+  '/track': typeof TrackRoute
   '/admin/fleets': typeof AdminFleetsRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/map': typeof AdminMapRoute
@@ -197,9 +210,8 @@ export interface FileRoutesById {
   '/admin/records': typeof AdminRecordsRoute
   '/admin/senders': typeof AdminSendersRoute
   '/api/tiles': typeof ApiTilesRoute
-  '/_send/': typeof SendIndexRoute
+  '/job/$jobId': typeof JobJobIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/_send/job/$jobId': typeof SendJobJobIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/paystack/webhook': typeof ApiPaystackWebhookRoute
 }
@@ -208,12 +220,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/account'
+    | '/contact'
+    | '/jobs'
     | '/login'
     | '/ops'
     | '/pay'
-    | '/send'
-    | '/account'
     | '/request'
+    | '/send'
     | '/track'
     | '/admin/fleets'
     | '/admin/jobs'
@@ -222,18 +236,21 @@ export interface FileRouteTypes {
     | '/admin/records'
     | '/admin/senders'
     | '/api/tiles'
-    | '/admin/'
     | '/job/$jobId'
+    | '/admin/'
     | '/api/auth/$'
     | '/api/paystack/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/account'
+    | '/contact'
+    | '/jobs'
     | '/login'
     | '/ops'
     | '/pay'
-    | '/send'
-    | '/account'
     | '/request'
+    | '/send'
     | '/track'
     | '/admin/fleets'
     | '/admin/jobs'
@@ -242,22 +259,23 @@ export interface FileRouteTypes {
     | '/admin/records'
     | '/admin/senders'
     | '/api/tiles'
-    | '/'
-    | '/admin'
     | '/job/$jobId'
+    | '/admin'
     | '/api/auth/$'
     | '/api/paystack/webhook'
   id:
     | '__root__'
-    | '/_send'
+    | '/'
     | '/admin'
+    | '/account'
+    | '/contact'
+    | '/jobs'
     | '/login'
     | '/ops'
     | '/pay'
+    | '/request'
     | '/send'
-    | '/_send/account'
-    | '/_send/request'
-    | '/_send/track'
+    | '/track'
     | '/admin/fleets'
     | '/admin/jobs'
     | '/admin/map'
@@ -265,32 +283,44 @@ export interface FileRouteTypes {
     | '/admin/records'
     | '/admin/senders'
     | '/api/tiles'
-    | '/_send/'
+    | '/job/$jobId'
     | '/admin/'
-    | '/_send/job/$jobId'
     | '/api/auth/$'
     | '/api/paystack/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  SendRouteRoute: typeof SendRouteRouteWithChildren
+  IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  AccountRoute: typeof AccountRoute
+  ContactRoute: typeof ContactRoute
+  JobsRoute: typeof JobsRoute
   LoginRoute: typeof LoginRoute
   OpsRoute: typeof OpsRoute
   PayRoute: typeof PayRoute
+  RequestRoute: typeof RequestRoute
   SendRoute: typeof SendRoute
+  TrackRoute: typeof TrackRoute
   ApiTilesRoute: typeof ApiTilesRoute
+  JobJobIdRoute: typeof JobJobIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPaystackWebhookRoute: typeof ApiPaystackWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_send': {
-      id: '/_send'
-      path: ''
+    '/': {
+      id: '/'
+      path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof SendRouteRouteImport
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -298,6 +328,20 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -321,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/request': {
+      id: '/request'
+      path: '/request'
+      fullPath: '/request'
+      preLoaderRoute: typeof RequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/send': {
       id: '/send'
       path: '/send'
@@ -328,33 +379,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SendRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_send/': {
-      id: '/_send/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof SendIndexRouteImport
-      parentRoute: typeof SendRouteRoute
-    }
-    '/_send/account': {
-      id: '/_send/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof SendAccountRouteImport
-      parentRoute: typeof SendRouteRoute
-    }
-    '/_send/request': {
-      id: '/_send/request'
-      path: '/request'
-      fullPath: '/request'
-      preLoaderRoute: typeof SendRequestRouteImport
-      parentRoute: typeof SendRouteRoute
-    }
-    '/_send/track': {
-      id: '/_send/track'
+    '/track': {
+      id: '/track'
       path: '/track'
       fullPath: '/track'
-      preLoaderRoute: typeof SendTrackRouteImport
-      parentRoute: typeof SendRouteRoute
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/': {
       id: '/admin/'
@@ -412,12 +442,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTilesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_send/job/$jobId': {
-      id: '/_send/job/$jobId'
+    '/job/$jobId': {
+      id: '/job/$jobId'
       path: '/job/$jobId'
       fullPath: '/job/$jobId'
-      preLoaderRoute: typeof SendJobJobIdRouteImport
-      parentRoute: typeof SendRouteRoute
+      preLoaderRoute: typeof JobJobIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -435,26 +465,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface SendRouteRouteChildren {
-  SendAccountRoute: typeof SendAccountRoute
-  SendRequestRoute: typeof SendRequestRoute
-  SendTrackRoute: typeof SendTrackRoute
-  SendIndexRoute: typeof SendIndexRoute
-  SendJobJobIdRoute: typeof SendJobJobIdRoute
-}
-
-const SendRouteRouteChildren: SendRouteRouteChildren = {
-  SendAccountRoute: SendAccountRoute,
-  SendRequestRoute: SendRequestRoute,
-  SendTrackRoute: SendTrackRoute,
-  SendIndexRoute: SendIndexRoute,
-  SendJobJobIdRoute: SendJobJobIdRoute,
-}
-
-const SendRouteRouteWithChildren = SendRouteRoute._addFileChildren(
-  SendRouteRouteChildren,
-)
 
 interface AdminRouteRouteChildren {
   AdminFleetsRoute: typeof AdminFleetsRoute
@@ -481,13 +491,19 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  SendRouteRoute: SendRouteRouteWithChildren,
+  IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  AccountRoute: AccountRoute,
+  ContactRoute: ContactRoute,
+  JobsRoute: JobsRoute,
   LoginRoute: LoginRoute,
   OpsRoute: OpsRoute,
   PayRoute: PayRoute,
+  RequestRoute: RequestRoute,
   SendRoute: SendRoute,
+  TrackRoute: TrackRoute,
   ApiTilesRoute: ApiTilesRoute,
+  JobJobIdRoute: JobJobIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPaystackWebhookRoute: ApiPaystackWebhookRoute,
 }

@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { JobsBoard } from "@/components/send/jobs-board";
+import { SenderLayout } from "@/components/send/sender-shell";
 
-export const Route = createFileRoute("/_send/job/$jobId")({
+export const Route = createFileRoute("/job/$jobId")({
   component: JobPage,
   head: () => ({
     meta: [{ title: "Deli — Job" }],
@@ -10,5 +11,9 @@ export const Route = createFileRoute("/_send/job/$jobId")({
 
 function JobPage() {
   const { jobId } = Route.useParams();
-  return <JobsBoard openJobId={jobId} />;
+  return (
+    <SenderLayout>
+      <JobsBoard openJobId={jobId} />
+    </SenderLayout>
+  );
 }
